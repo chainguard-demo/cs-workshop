@@ -156,9 +156,11 @@ chainctl auth login
 chainctl auth configure-docker
 
 # Benchmark
+docker pull cgr.dev/chainlabs-roadshows/python:3.12
 docker run --rm --privileged \
+-v /var/run/docker.sock:/var/run/docker.sock \
 ghcr.io/chps-dev/chps-scorer:latest \
-cgr.dev/chainguard/python:latest
+--local cgr.dev/chainlabs-roadshows/python:3.12
 
 # Build & Test
 docker build -t voting-app:cgr -f ./answers/Dockerfile.cgr .

@@ -36,12 +36,23 @@ curl -o chainctl "https://dl.enforce.dev/chainctl/latest/chainctl_$(uname -s | t
 sudo install -o $UID -g $(id -g) -m 0755 chainctl /usr/local/bin/ 
 ```
 
+- To avoid rate limiting issues, please also pull the following public images **prior** to the workshop:
+
+```sh
+docker pull python:3.12
+docker pull ghcr.io/chps-dev/chps-scorer:latest
+docker pull registry.access.redhat.com/ubi9/python-312:latest
+docker pull anchore/grype:latest
+```
+
+_NOTE:_ Logging into a DockerHub account will also help prevent workshop participants from encountering [rate limits](https://docs.docker.com/docker-hub/usage/).
+
 ### Setup
 
 To get started, clone this repo and change into the current directory!
 
 ```sh
-git clone https://github.com/chainguard-dev/cs-workshop.git
+git clone https://github.com/chainguard-demo/cs-workshop.git
 cd cs-workshop/python/chainlabs-roadshow
 ```
 
@@ -53,9 +64,9 @@ As indicated in line 1 of `Dockerfile.deb`, our application currently depends on
 
 ```sh
 docker build -t voting-app:deb -f Dockerfile.deb .
-docker run --rm -p 5000:5000 voting-app:deb
+docker run --rm -p 5001:5000 voting-app:deb
 
-# Note: We can view the app at http://localhost:5000/
+# Note: We can view the app at http://localhost:5001/
 # Use CTRL + C to exit
 ```
 
@@ -63,8 +74,9 @@ To better understand our application's foundation, let's also benchmark the base
 
 ```sh
 docker run --rm --privileged \
+-v /var/run/docker.sock:/var/run/docker.sock \
 ghcr.io/chps-dev/chps-scorer:latest \
-python:3.12
+--local python:3.12
 ```
 
 ![Benchmark Output](./img/1.png)
@@ -77,8 +89,9 @@ Great news: our Engineering team was given the green light to use a UBI-based im
 
 ```sh
 docker run --rm --privileged \
+-v /var/run/docker.sock:/var/run/docker.sock \
 ghcr.io/chps-dev/chps-scorer:latest \
-registry.access.redhat.com/ubi9/python-312:latest
+--local registry.access.redhat.com/ubi9/python-312:latest
 ```
 
 ![Benchmark Output](./img/2.png)
@@ -104,10 +117,10 @@ _See if you can figure out how to successfully build the UBI-based image without
 ```sh
 # SOLUTION:
 docker build -t voting-app:ubi -f ./answers/Dockerfile.ubi-fixed .
-docker run --rm -p 5000:5000 voting-app:ubi
+docker run --rm -p 5001:5000 voting-app:ubi
 ```
 
-Whew! That was painful, but at least we have a working application now. We can now see the Voting App page at http://localhost:5000
+Whew! That was painful, but at least we have a working application now. We can now see the Voting App page at http://localhost:5001
 
 ![Voting App](./img/3.png)
 
@@ -164,7 +177,7 @@ ghcr.io/chps-dev/chps-scorer:latest \
 
 # Build & Test
 docker build -t voting-app:cgr -f ./answers/Dockerfile.cgr .
-docker run --rm -p 5000:5000 voting-app:cgr
+docker run --rm -p 5001:5000 voting-app:cgr
 
 # Scan
 docker run --rm \
@@ -208,7 +221,7 @@ Custom Assembly allows users to **customize images while retaining Chainguard's 
 
 ```sh
 docker build -t voting-app:cgr-ca -f ./answers/Dockerfile.cgr-ca .
-docker run --rm -p 5000:5000 voting-app:cgr-ca
+docker run --rm -p 5001:5000 voting-app:cgr-ca
 ```
 
 Additional CA Resources:

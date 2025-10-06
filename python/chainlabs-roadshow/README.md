@@ -163,6 +163,12 @@ docker run --rm -v "$PWD":/work cgr.dev/chainguard/dfc --org="chainlabs-roadshow
 
 Check out the results for yourself, and see how much smaller the image and its attack surface are!
 
+_Note:_ If you’d prefer not to use social logins, you can log in with email here [https://console.chainguard.dev/?feature.emailAuth=true](https://console.chainguard.dev/?feature.emailAuth=true) while following these steps:
+- Enter your email and click Sign Up
+- Complete MFA + set a password
+- Go to Join Organization (top left corner)
+- Paste your invite code and continue
+
 ```sh
 # Authenticate
 chainctl auth login
@@ -201,7 +207,7 @@ While working with organizations who were building out their Golden Image progra
 
 Custom Assembly allows users to **customize images while retaining Chainguard's CVE remediation SLA** at the Package Level (7 days for Critical CVEs; 14 days for High, Medium, and Low CVEs) as well as **preserving end-to-end intregity** through Chainguard's SLSA Level 3 build pipelines which include things like SBOMs and cryptographic attestations. Today, we are inviting workshop participants to try it for yourselves!
 
-1. To get started, login to the `chainlabs-roadshows` org at [http://console.chainguard.dev/?feature.saveAs=true](http://console.chainguard.dev/?feature.saveAs=true) and click on the **python** image.
+1. To get started, enable the `saveAs` feature at [http://console.chainguard.dev/?feature.saveAs=true](http://console.chainguard.dev/?feature.saveAs=true) and click on the **python** image.
 
 ![Chainguard Console](./img/6a.png)
 

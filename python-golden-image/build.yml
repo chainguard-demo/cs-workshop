@@ -1,0 +1,95 @@
+name: Python 3 - Nightly Build Workflow
+on:
+  workflow_dispatch:
+  schedule:
+   - cron: '0 0 * * *'  # Runs every day at midnight
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  build-container-image:
+    name: build-image
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      OWNER: ${{ github.repository_owner }}
+      REPO:  ${{ github.event.repository.name }}
+      IMAGE: ghcr.io/${{github.repository_owner }}/${{ github.event.repository.name }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install chainctl and authenticate
+      uses: chainguard-dev/setup-chainctl@main
+      with:
+        identity: ${{secrets.CHAINCTL_ID}}
+
+    - name: Chainctl Status
+      run: chainctl auth status
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Install cosign
+      uses: sigstore/cosign-installer@main
+
+    - name: Verify Source Images
+      run: |
+        cosign dockerfile verify \
+        --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+        --certificate-identity=https://github.com/chainguard-images/images-private/.github/workflows/release.yaml@refs/heads/main \
+        ../Dockerfile | jq -r '[.[].critical.identity."docker-reference", .[].critical.image."docker-manifest-digest"] | join ("@")' 
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push
+      id: push-step
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ env.IMAGE }}:3-nightly
+          ${{ env.IMAGE }}:${{ github.sha }}
+        labels: |
+          timestamp=${{ github.event.head_commit.timestamp }}
+          git-commit=${{ github.sha }}
+
+    - name: Install incert
+      run: |
+        curl -fsSL "https://github.com/chainguard-dev/incert/releases/download/v0.5.0/incert-linux-amd64" -o /usr/local/bin/incert
+        chmod +x /usr/local/bin/incert
+      
+    - name: Inject CA with incert and push
+      id: incert
+      run: |
+        echo ${{vars.CA_CERT}} | base64 -d > ca-certs.pem
+        incert -image-url ${{ env.IMAGE }}:3-nightly -dest-image-url ${{ env.IMAGE }}:3-nightly -ca-certs-file ca-certs.pem
+        incert -image-url ${{ env.IMAGE }}:${{ github.sha }} -dest-image-url ${{ env.IMAGE }}:${{ github.sha }} -ca-certs-file ca-certs.pem
+    
+    - name: Sign the container image
+      run: |
+        cosign sign ${{ env.IMAGE }}:3-nightly
+        cosign sign ${{ env.IMAGE }}:${{ github.sha }}
+    
+    - name: Verify the container image signature
+      run: |
+        cosign verify --certificate-oidc-issuer=https://token.actions.githubusercontent.com --certificate-identity=https://github.com/${{github.repository_owner}}/${{github.event.repository.name}}/.github/workflows/build.yml@refs/heads/main ${{ env.IMAGE }}:3-nightly
+        cosign verify --certificate-oidc-issuer=https://token.actions.githubusercontent.com --certificate-identity=https://github.com/${{github.repository_owner}}/${{github.event.repository.name}}/.github/workflows/build.yml@refs/heads/main ${{ env.IMAGE }}:${{ github.sha }}
+
+    - name: Install Grype
+      uses: anchore/scan-action/download-grype@v3
+
+    - name: Scan the container image
+      run: |
+        grype ${{ env.IMAGE }}:3-nightly --fail-on high
+        grype ${{ env.IMAGE }}:${{ github.sha }} --fail-on high

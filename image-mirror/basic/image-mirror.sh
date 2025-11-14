@@ -40,29 +40,28 @@ fi
 catalog_syncer=$(chainctl iam account-associations describe "${org_name}" -o json | jq -r '.[].chainguard.service_bindings.CATALOG_SYNCER')
 apko_builder=$(chainctl iam account-associations describe "${org_name}" -o json | jq -r '.[].chainguard.service_bindings.APKO_BUILDER')
 
-# List every tag that has been updated in the last 72h. 
-#
-# This produces a list of images in the form <repo>:<tag>@<digest>.
+# Return a list of tags that includes all the 'active' tags for the image and
+# any tags that were updated relatively recently.
 image_list=$(
   chainctl image list \
     --parent="${org_name}" \
     --repo="${repo_name}" \
     --updated-within=72h \
     -o json \
-    | jq -r --arg src_repo "${src_repo}" '.[].tags[] | $src_repo + ":" + .name + "@" + .digest'
+    | jq -cr '
+      .[] | ((.repo.activeTags // []) + [.tags[] | .name]) | unique[]
+    '
 )
 
-
-# If there haven't been any updates in the last 72 hours then the list will be
-# empty.
+# If there are no active tags then the list will be empty.
 if [[ -z "${image_list}" ]]; then
-  echo "No recently updated images found. Exiting." >&2
+  echo "No active tags found. Exiting." >&2
   exit 0
 fi
 
-# Iterate over each image
-while read -r src; do
-    tag=$(t=${src#*:}; echo ${t%@*})
+# Iterate over each tag
+while read -r tag; do
+    src=$(crane digest --full-ref "${src_repo}:${tag}")
     dst="${dst_repo}:${tag}"
 
     # Verify the signature before we copy it

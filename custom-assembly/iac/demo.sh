@@ -33,12 +33,12 @@ banner "Let's try adding 'curl' to our custom node image. First, let's check it 
 pe "curl -sSf -u \"_token:\$(chainctl auth token --audience apk.cgr.dev)\" \"https://apk.cgr.dev/${ORGANIZATION}/x86_64/APKINDEX.tar.gz\" | tar -xOz APKINDEX | grep '^P:curl$'"
 
 banner "Next, let's add it to the file and run the presubmit checks."
-pe "yq -i '.contents.packages += [\"curl\"]' images/custom-iac-demo-node.yaml"
+pe "yq -i '.custom_overlay.contents.packages += [\"curl\"]' images/custom-iac-demo-node.yaml"
 pe "git diff images/custom-iac-demo-node.yaml"
 pe "./presubmit.sh ${ORGANIZATION}"
 
 banner "If we add an invalid package to one of the files, the presubmit check should fail."
-pe "yq -i '.contents.packages += [\"foobar\"]' images/custom-iac-demo-python.yaml"
+pe "yq -i '.custom_overlay.contents.packages += [\"foobar\"]' images/custom-iac-demo-python.yaml"
 pe "cat images/custom-iac-demo-python.yaml"
 pe "./presubmit.sh ${ORGANIZATION}"
 pe "git checkout HEAD images/custom-iac-demo-python.yaml"

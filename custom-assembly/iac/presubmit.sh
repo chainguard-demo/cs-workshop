@@ -29,6 +29,13 @@ while read -r f; do
   repo="${repo%.yaml}"
   repo="${repo%.yml}"
 
+  # The file should define a source image from which the custom image is derived
+  src=$(yq '.source // ""' "${f}")
+  if [[ -z "${src}" ]]; then
+    echo "${repo}: ERROR: file does not define a 'source'" >&2
+    exit 1
+  fi
+
   # If the repository exists, ensure the repository is configured for custom assembly
   if [[ -n $(chainctl image repo list --parent="${org_name}" --repo="${repo}" -o id) ]]; then
     echo "${repo}: checking the repository is enabled for custom assembly." >&2

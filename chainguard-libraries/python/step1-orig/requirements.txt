@@ -1,0 +1,4 @@
+Werkzeug==3.0.2
+Flask==3.0.2
+Pillow==11.2.1
+packaging==24.1

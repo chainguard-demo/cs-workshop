@@ -1,0 +1,40 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <servers>
+    <server>
+      <id>chainguard-libs</id>
+      <username>${env.CGR_MAVEN_USER}</username>
+      <password>${env.CGR_MAVEN_PASS}</password>
+    </server>
+  </servers>
+
+  <profiles>
+    <profile>
+      <id>chainguard-libraries</id>
+      <repositories>
+        <!-- 1️⃣ Chainguard Maven repo (first priority) -->
+        <repository>
+          <id>chainguard-libs</id>
+          <url>https://libraries.cgr.dev/maven/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+
+        <!-- 2️⃣ Maven Central fallback -->
+        <repository>
+          <id>central</id>
+          <url>https://repo1.maven.org/maven2</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>chainguard-libraries</activeProfile>
+  </activeProfiles>
+</settings>

@@ -6,7 +6,7 @@ This repository contains the materials for the Chainguard Trainer Development
 Workshop. The workshop is designed to help you understand the Chainguard
 platform and how to teach others about it.
 
-The workshop is broken down into them following sections.
+The workshop is broken down into the following sections.
 
 1. Chainguard Overview
    * Explaining Chainguard Images to your teams
@@ -57,20 +57,24 @@ For the Kubernetes exercises, you must have:
 
 These CLI tools may also come up:
 
-* [chainctl](https://edu.chainguard.dev/chainguard/chainctl/)
-* [crane](https://github.com/google/go-containerregistry/blob/main/cmd/crane/doc/crane.md)
 * [cdebug](https://github.com/iximiuz/cdebug) 
+* [chainctl](https://edu.chainguard.dev/chainguard/chainctl/)
+* [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
+* [crane](https://github.com/google/go-containerregistry/blob/main/cmd/crane/doc/crane.md)
 * [dive](https://github.com/wagoodman/dive)
-* [jq](https://jqlang.github.io/jq/) 
+* [grype](https://github.com/anchore/grype#installation)
+* [jq](https://jqlang.github.io/jq/)
+* [syft](https://github.com/anchore/syft#installation)
 
 ### Network Access Requirements
 
-Our full platform access requirements are documented on [this
+Our full network access requirements are documented on [this
 page](https://edu.chainguard.dev/chainguard/administration/network-requirements/).
 
-If you have a private mirror of your Chainguard registry images and/or apk
-package repositories, those may be used with minor modifications that we will
-address in the workshops.
+Ideally, you will be able to access the public images hosted in `cgr.dev` and
+the packages in `apk.cgr.dev`. If you can't, and you have a private mirror of
+your Chainguard registry images and/or apk package repositories, those may be
+used with minor modifications that we can address in the workshops.
 
 In addition, internet access to the following will be needed:
 

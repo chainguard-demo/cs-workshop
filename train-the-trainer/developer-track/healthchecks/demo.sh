@@ -1,6 +1,6 @@
 #! env bash
 
-. ../../base.sh
+. ../../../base.sh
 
 docker-compose -f docker-compose-0.yml down
 docker-compose -f docker-compose-1.yml down

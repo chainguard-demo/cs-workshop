@@ -11,7 +11,8 @@ COPY package*.json ./
 RUN npm install
 
 # Copy the image into the container
-COPY image.jpg ./image.jpg
+ARG IMAGE
+COPY ${IMAGE} ./image.jpg
 
 # Copy the rest of the application code
 COPY . .

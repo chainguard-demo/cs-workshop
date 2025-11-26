@@ -11,16 +11,26 @@ COPY package*.json ./
 RUN npm install
 
 # Copy the image into the container
-COPY image.jpg ./image.jpg
+ARG IMAGE
+COPY ${IMAGE} ./image.jpg
 
 # Copy the rest of the application code
 COPY . .
 
+# Use the -slim variant as the final stage
 FROM cgr.dev/chainguard/node:latest-slim
+
+# Copy in the application, ensure it is owned by the 'node' user
 COPY --from=builder --chown=node:node /usr/src/app /app
+
+# Ensure node_modules are in the PATH
 ENV PATH=/app/node_modules/.bin:$PATH
+
+# Set the working directory to the application
 WORKDIR /app
 
-# Command to run the Node.js application
+# Use dumb-init as PID 1 so it can handle signals etc
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Command to run the Node.js application
 CMD ["node", "index.js"]

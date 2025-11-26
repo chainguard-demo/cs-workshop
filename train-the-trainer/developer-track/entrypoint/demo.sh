@@ -1,6 +1,6 @@
 #! env bash
 
-. ../../base.sh
+. ../../../base.sh
 
 # Delete existing cluster
 if kind get clusters 2>/dev/null | grep -Eq '^entrypoint-example$'; then

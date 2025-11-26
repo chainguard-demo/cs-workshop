@@ -6,20 +6,17 @@ USER root
 RUN apk add --no-cache mariadb-connector-c-dev mariadb
 USER 65532
 
-# Install python packages into a virtual environment so they can be easily
-# copied into the runtime stage.
+# Install python packages into /app
 WORKDIR /app
-RUN python -m venv venv
-ENV PATH="/app/venv/bin":$PATH
 COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --target /app -r requirements.txt \
+  && rm requirements.txt
 
 FROM cgr.dev/chainguard/python:latest
 
-# Copy virtual environment into the runtime stage.
+# Copy /app from the 'dev' stage
 WORKDIR /app
-COPY --from=dev /app/venv /app/venv
-ENV PATH="/app/venv/bin":$PATH
+COPY --from=dev /app /app
 
 COPY run.py run.py
 

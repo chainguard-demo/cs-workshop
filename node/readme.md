@@ -15,7 +15,7 @@ terminal in ASCII.
 1. Build the image. Pass the 'not linky' image in as an argument.
 
 ```
-docker build \
+docker build . \
     -t node-example:notlinky \
     -f notlinky.Dockerfile \
     --build-arg IMAGE=notlinky.jpg

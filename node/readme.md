@@ -44,7 +44,7 @@ grype node-example:notlinky
 1. Build the image. Pass the 'linky' image in as an argument.
 
 ```
-docker build \
+docker build . \
     -t node-example:linky \
     -f linky.Dockerfile \
     --build-arg IMAGE=linky.jpg

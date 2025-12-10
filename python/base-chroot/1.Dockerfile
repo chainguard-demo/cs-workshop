@@ -1,4 +1,5 @@
-FROM cgr.dev/chainguard/python:latest-dev AS dev
+ARG CHAINGUARD_ORG="cs-ttt-demo.dev"
+FROM cgr.dev/${CHAINGUARD_ORG}/python:3.13-dev AS dev
 
 # Install python packages into /app
 WORKDIR /app
@@ -6,7 +7,7 @@ COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir --target /app -r requirements.txt \
   && rm requirements.txt
 
-FROM cgr.dev/chainguard/python:latest
+FROM cgr.dev/${CHAINGUARD_ORG}/python:3.13
 
 # Copy /app from the 'dev' stage
 WORKDIR /app

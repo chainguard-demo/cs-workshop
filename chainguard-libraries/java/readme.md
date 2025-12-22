@@ -23,7 +23,7 @@
     - [1. Set variables](#1-set-variables)
     - [2. Build with Chainguard Maven and JRE](#2-build-with-chainguard-maven-and-jre)
     - [3. Run and test](#3-run-and-test)
-    - [4. Scan with Chainver](#4-scan-with-chainver)
+    - [4. Scan with chainctl](#4-scan-with-chainctl)
     - [5. Cleanup](#5-cleanup)
   - [🧱 Step 4 — Java Library Provenance](#-step-4--java-library-provenance)
     - [1. View Java library provenance](#1-view-java-library-provenance)
@@ -64,7 +64,7 @@ For this demo all builds will use **containerized environments** to avoid needin
 ## 🧰 Prerequisites
 
 - **chainctl** is installed and user has access to the chainguard org with java ecosystem entitlements. NOTE: The user must have the `libraries.java.pull` role in order to access libraries from `https://libraries.cgr.dev/maven/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
-- **Chainver** CLI tool to scan artifacts.  Chainver install docs can be found [here](https://edu.chainguard.dev/chainguard/libraries/verification/#installation)
+- **chainctl** CLI tool to scan artifacts.  chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **jq** installed for JSON parsing  
 - A **Chainguard organization name** (e.g. `myorg.com`) that has Java ecosystem entitlements. 
 - Network Access to `libraries.cgr.dev/maven/`
@@ -142,8 +142,8 @@ curl http://localhost:8081
 # Copy the generated JAR file out of the running container.
 docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .
 
-# Analyze the JAR with Chainver to confirm dependencies come from Maven Central.
-chainver --parent $ORG_NAME java-demo-app-1.0.0.jar
+# Analyze the JAR with chainctl to confirm dependencies come from Maven Central.
+chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar
 ```
 
 ### 7. Cleanup
@@ -222,11 +222,11 @@ docker build \
 docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG
 curl http://localhost:8081
 
-# Copy the JAR file out for scanning with chainver.
+# Copy the JAR file out for scanning with chainctl.
 docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .
 
-# Scan with Chainver to determine dependency coverage sourced from Chainguard.
-chainver --parent $ORG_NAME java-demo-app-1.0.0.jar
+# Scan with chainctl to determine dependency coverage sourced from Chainguard.
+chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar
 ```
 
 ### 7. Cleanup
@@ -276,17 +276,17 @@ docker build \
 docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG
 curl http://localhost:8081
 
-# Copy the JAR so that we can scan it with chainver.
+# Copy the JAR so that we can scan it with chainctl.
 docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .
 ```
 
-### 4. Scan with Chainver
+### 4. Scan with chainctl
 
-Re-scan the jar with chainver, this should reveal the same results as the previous scan.
+Re-scan the jar with chainctl, this should reveal the same results as the previous scan.
 
 ```bash
-# Stop and remove the container, delete the JAR.
-docker stop java-lib-example-1 && docker rm java-lib-example-1 && rm java-demo-app-1.0.0.jar
+# Scan with chainctl to determine dependency coverage sourced from Chainguard.
+chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar
 ```
 
 ### 5. Cleanup
@@ -337,8 +337,6 @@ chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
   Make sure BuildKit is enabled (`DOCKER_BUILDKIT=1 docker build …`) when using secrets.
 - **Credential issues:**  
   If you see 401 or 403 errors from `libraries.cgr.dev`, ensure the `CGR_MAVEN_USER` and `CGR_MAVEN_PASS` environment variables are correctly set.
-- **Chainver not found:**  
-  Install via `chainguard install chainver` or verify your PATH.
 - **Port conflicts:**  
   If port `8081` is in use, update the `docker run` command (e.g., `-p 8082:8080`).
 - **Maven Central fallback:**  

@@ -97,8 +97,8 @@ pe 'curl -F "file=@linky.png" http://127.0.0.1:5055/upload'
 p "# Copy the venv for scanning to see how many dependencies were pulled from Chainguard:"
 pei 'docker cp python-lib-example:/app/venv .'
 
-p "# Analyze the venv with chainver, as you can see no dependencies are coming from Chainguard"
-pei 'chainver --parent $ORG_NAME venv'
+p "# Analyze the venv with chainctl, as you can see no dependencies are coming from Chainguard"
+pei 'chainctl libraries verify --parent $ORG_NAME venv'
 
 p "# Cleanup Step - Stop the running container and remove the local venv directory."
 pei 'docker stop python-lib-example && docker rm python-lib-example && rm -rf venv'
@@ -153,7 +153,7 @@ pe 'curl -F "file=@linky.png" http://127.0.0.1:5055/upload'
 
 p "# Copy and analyze venv"
 pei 'docker cp python-lib-example:/app/venv .'
-pei 'chainver --parent $ORG_NAME venv'
+pei 'chainctl libraries verify --parent $ORG_NAME venv'
 
 p "# Cleanup Step - Stop the running container and remove the local venv directory."
 pei 'docker stop python-lib-example && docker rm python-lib-example && rm -rf venv'
@@ -185,14 +185,14 @@ p "# Run the container and test it by uploading an image, we should get a json r
 pei 'docker run -d -p 5055:5055 --name python-lib-example python-lib-example:$TAG'
 pe 'curl -F "file=@linky.png" http://127.0.0.1:5055/upload'
 
-p "# Copy the venv directory from the container locally so we can scan it with chainver."
+p "# Copy the venv directory from the container locally so we can scan it with chainctl."
 pei 'docker cp python-lib-example:/app/venv .'
-pei 'chainver --parent $ORG_NAME venv'
+pei 'chainctl libraries verify --parent $ORG_NAME venv'
 
 banner "Step 4: View Python Library Provenance"
 pei "# Each Python dependency built by Chainguard is accompanied by an SBOM, the SBOM can be found in the <site-packages>/<package-name>-version.dist-info/sboms directory where the dependency was installed."
-pei '# Chainver looks at the sbom to determine if the package was built by Chainguard, you can see the packages.supplier field is Chainguard, Inc and the download location shows the github URL and commit ID of the version that was built. Lets take a look at the first part of the SBOM for the Flask dependency:'
-pe "jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}' venv/lib/python3.13/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq ."
+pei '# chainctl libraries verify looks at the sbom to determine if the package was built by Chainguard, you can see the packages.supplier field is Chainguard, Inc and the download location shows the github URL and commit ID of the version that was built. Lets take a look at the first part of the SBOM for the Flask dependency:'
+pe "jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}' venv/lib/python3.14/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq ."
 pei ""
 
 p "# Cleanup: Stop the container and delete the local venv directory."

@@ -9,7 +9,7 @@
     - [3. Set build variables](#3-set-build-variables)
     - [4. Build the image](#4-build-the-image)
     - [5. Run and test](#5-run-and-test)
-    - [6. Scan with Chainver](#6-scan-with-chainver)
+    - [6. Scan with chainctl](#6-scan-with-chainctl)
     - [7. Cleanup](#7-cleanup)
   - [🧱 Step 2 — Build Using Chainguard Libraries](#-step-2--build-using-chainguard-libraries)
     - [1. Create a pull token](#1-create-a-pull-token)
@@ -63,8 +63,6 @@ For this demo all builds will use **containerized environments** to avoid needin
 ## 🧰 Prerequisites
 
 - **chainctl** — installed and authenticated to your Chainguard org with `libraries.python.pull` entitlements. NOTE: The user must have the `libraries.python.pull` role in order to access libraries from `https://libraries.cgr.dev/python/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
-- **Chainver** CLI for scanning artifacts.  
-  [Install Chainver](https://edu.chainguard.dev/chainguard/libraries/verification/#installation)
 - **jq** for JSON parsing.
 - A **Chainguard organization name** (e.g. `myorg.com`) that has Python ecosystem entitlements. 
 - Docker installed to run images
@@ -135,15 +133,15 @@ docker run -d -p 5055:5055 --name python-lib-example python-lib-example:$TAG
 curl -F "file=@linky.png" http://127.0.0.1:5055/upload
 ```
 
-### 6. Scan with Chainver
-In this step we will use chainver to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI since we haven't built with the Chainguard repo yet we expect the output to be 0%.
+### 6. Scan with chainctl
+In this step we will use chainctl to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI since we haven't built with the Chainguard repo yet we expect the output to be 0%.
 
 ```bash
 # Copy the virtual environment from the container for scanning.
 docker cp python-lib-example:/app/venv .
 
-# Analyze dependencies with Chainver to confirm dependencies came from PyPI.
-chainver --parent $ORG_NAME venv
+# Analyze dependencies with chainctl to confirm dependencies came from PyPI.
+chainctl libraries verify --parent $ORG_NAME venv
 ```
 
 ### 7. Cleanup
@@ -224,11 +222,11 @@ docker run -d -p 5055:5055 --name python-lib-example python-lib-example:$TAG
 
 curl -F "file=@linky.png" http://127.0.0.1:5055/upload
 
-# Copy the venv directory out for scanning with chainver.
+# Copy the venv directory out for scanning with chainctl.
 docker cp python-lib-example:/app/venv .
 
-# Scan with Chainver to determine dependency coverage sourced from Chainguard.
-chainver --parent $ORG_NAME venv
+# Scan with chainctl to determine dependency coverage sourced from Chainguard.
+chainctl libraries verify --parent $ORG_NAME venv
 ```
 
 ### 6. Cleanup
@@ -276,7 +274,7 @@ docker build \
 ```
 
 ### 4. Run and test
-Now we will run and test the container and then copy the venv directory locally for analysis with chainver.
+Now we will run and test the container and then copy the venv directory locally for analysis with chainctl.
 
 ```bash
 # Start the app using the Chainguard-built container and test it.
@@ -285,11 +283,11 @@ docker run -d -p 5055:5055 --name python-lib-example python-lib-example:$TAG
 # Test to ensure functionality still works:
 curl -F "file=@linky.png" http://127.0.0.1:5055/upload
 
-# Copy the venv directory out for scanning with chainver.
+# Copy the venv directory out for scanning with chainctl.
 docker cp python-lib-example:/app/venv .
 
-# Scan with Chainver to determine dependency coverage sourced from Chainguard.
-chainver --parent $ORG_NAME venv
+# Scan with chainctl to determine dependency coverage sourced from Chainguard.
+chainctl libraries verify --parent $ORG_NAME venv
 
 ```
 

@@ -23,7 +23,7 @@ The Java workshop guides you through rebuilding a Spring Boot application using:
 - Chainguard Libraries with upstream Maven and Temurin images
 - Chainguard Libraries with Maven + JRE Chainguard build images  
 - Dependency provenance and SBOM inspection  
-- Chainver scanning and verification of dependency origin
+- chainctl scanning and verification of dependency origin
 
 This is ideal for teams using Maven- or Gradle-based Java applications who want to learn how to replace upstream dependencies with Chainguard-verified artifacts.
 
@@ -39,7 +39,7 @@ The Python workshop walks you through rebuilding a Flask application using:
 - Chainguard Libraries via `uv` with upstream Python images  
 - Full Chainguard Python build/runtime images  
 - Dependency provenance and SBOM inspection  
-- Chainver scanning and verification of dependency origin
+- chainctl scanning and verification of dependency origin
 
 This workshop is ideal for teams using Python and wanting to migrate from PyPI to Chainguard’s verified Python ecosystem.
 
@@ -73,7 +73,7 @@ This upcoming workshop will demonstrate:
 All workshops demonstrate:
 
 1. How to pull dependencies from **Chainguard Libraries** instead of upstream sources.  
-2. How to scan applications with **Chainver** to confirm dependency origin.  
+2. How to scan applications with **chainctl** to confirm dependency origin.  
 3. How to view **provenance** for Chainguard Libraries
 
 ---

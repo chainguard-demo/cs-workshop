@@ -91,11 +91,11 @@ pei 'docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG'
 pe 'curl http://localhost:8081'
 pei ""
 
-p "# Copy the built jar file from the container locally so we can scan it with chainver."
+p "# Copy the built jar file from the container locally so we can scan it with chainctl."
 pei 'docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .'
 
-p "# Analyze the image and jar with chainver."
-pei 'chainver --parent $ORG_NAME java-demo-app-1.0.0.jar'
+p "# Analyze the image and jar with chainctl."
+pei 'chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar'
 
 # clean up
 pei "# Stop the running container and remove the local jar file:"
@@ -139,11 +139,11 @@ pei 'docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG'
 pe 'curl http://localhost:8081'
 pei ""
 
-p "# Copy the built jar file from the container locally so we can scan it with chainver."
+p "# Copy the built jar file from the container locally so we can scan it with chainctl."
 pei 'docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .'
 
-p "# Analyze the image and jar with chainver."
-pei 'chainver --parent $ORG_NAME java-demo-app-1.0.0.jar'
+p "# Analyze the image and jar with chainctl."
+pei 'chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar'
 
 # clean up
 pei "# Stop the running container and remove the local jar file:"
@@ -175,11 +175,11 @@ pei 'docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG'
 pe 'curl http://localhost:8081'
 pei ""
 
-p "# Copy the built jar file from the container locally so we can scan it with chainver."
+p "# Copy the built jar file from the container locally so we can scan it with chainctl."
 pei 'docker cp java-lib-example-1:/app/java-demo-app-1.0.0.jar .'
 
-p "# Analyze the image and jar with chainver."
-pei 'chainver --parent $ORG_NAME java-demo-app-1.0.0.jar'
+p "# Analyze the image and jar with chainctl."
+pei 'chainctl libraries verify --parent $ORG_NAME java-demo-app-1.0.0.jar'
 
 p "# Cleanup: Stop the container and delete the jar."
 pei 'docker stop java-lib-example-1 && docker rm java-lib-example-1 && rm java-demo-app-1.0.0.jar'
@@ -189,7 +189,7 @@ pei 'docker stop java-lib-example-1 && docker rm java-lib-example-1 && rm java-d
 ###############################################################################
 banner "Step 4: View Java Library Provenance"
 pei "# Each Java dependency built by Chainguard is accompanied by an SBOM, the SBOMs are published alongside each artifact as an SPDX JSON file named artifactId-version.spdx.json in the Chainguard Maven Repository."
-pei '# Chainver compares the package checksum with the one listed in the SBOM to determine if the package was built by Chainguard or not. Lets take a look at the SBOM for the spring-boot-starter-web dependency, we will start by downloading the SBOM from the Chainguard Maven repository:'
+pei '# chainctl compares the package checksum with the one listed in the SBOM to determine if the package was built by Chainguard or not. Lets take a look at the SBOM for the spring-boot-starter-web dependency, we will start by downloading the SBOM from the Chainguard Maven repository:'
 pei "curl -L --user \"\$CGR_MAVEN_USER:\$CGR_MAVEN_PASS\" \
   -O https://libraries.cgr.dev/java/org/springframework/boot/spring-boot-starter-web/3.3.5/spring-boot-starter-web-3.3.5.spdx.json"
 pei '# Now lets take a look at the relevant section of the SBOM:'

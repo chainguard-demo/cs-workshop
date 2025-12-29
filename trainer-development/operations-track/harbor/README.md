@@ -21,6 +21,8 @@ tools installed.
 - `helm`
 - `terraform`
 
+If you're using the deploy-harbor.sh script and you want to use Chainguard images, you need access to the default org (cs-ttt-demo) or you need an org that has all of the appropriate images.
+
 ## Instructions
 
 ### Deploy Harbor
@@ -35,15 +37,29 @@ kind create cluster --config ./kind/config.yaml
 
 Then, install the NGINX ingress controller.
 
+To use public k8s.io images run:
+
 ```
-kubectl apply -f ./manifests/deploy-ingress-nginx.yaml
+kubectl apply -f ./non-cg/manifests/deploy-ingress-nginx.yaml
+```
+
+To use Chainguard images run:
+```
+kubectl apply -f ./cg/manifests/deploy-ingress-nginx.yaml
 ```
 
 Finally, install Harbor with Helm. Use the custom values in this folder.
 
+To use public images run:
 ```
 helm repo add harbor https://helm.goharbor.io
-helm upgrade --install harbor harbor/harbor -n harbor -f ./helm/values.yaml --create-namespace
+helm upgrade --install harbor harbor/harbor -n harbor -f ./non-cg/helm/values.yaml --create-namespace
+```
+
+To use Chainguard images run:
+```
+helm repo add harbor https://helm.goharbor.io
+helm upgrade --install harbor harbor/harbor -n harbor -f ./cg/helm/values.yaml --create-namespace
 ```
 
 The UI should eventually become available at http://localhost/harbor.

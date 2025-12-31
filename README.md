@@ -1,20 +1,35 @@
-# cs-workshop
+# RCE Vuln exploit example
+This repo shows a hands-on example of how an a Remote Code Execution (RCE) vulnerability in an Open Source library can be exploited in a containerized application.  The goal of this demonstration is to show the importance of defense in depth including, but not limited to, the following topics:
+1. keeping your dependencies updated
+2. minimizing the attack surface of your container
+3. least privelge policies
 
-This repository contains content used as part of Chainguard Customer Success
-hands-on Workshops, it will grow and change as we add more examples.
+## Overview
+This demonstration creates and deploys pods on a standalone [kind][kind] Kubernetes cluster. The application is a basic Java-based web chat server using websockets.  The application is dependant on a very old version of the Log4J library which is vulnerable to [CVE-2021-44228][cve], a.k.a. Log4Shell. 
 
-## Workshops
+## Setup
 
-* [Chainguard Trainer Development](trainer-development/README.md)
+### Prerequisites
+* [git][git]
+* [kind][kind]
+* A [kind][kind] compatible container runtime (docker, podman, containerd + nerdctl)
+* [kubectl][kubectl-install]
+* [nc][netcat] (netcat) 
+* [tmux][tmux] (need to run the automated setup script)
 
-## Additional Resources
+### Start up the demo 
 
-### YouTube Playlists: https://www.youtube.com/@chainguard/playlists
+#### Automated method
+Run `./setup.sh`
 
-* [Tutorials](https://youtube.com/playlist?list=PLLjvkjPNmuZkXzbd8GlV0hjI0if6lf3G8)
-* [Learning Labs](https://youtube.com/playlist?list=PLLjvkjPNmuZmvi2ZDXicVAWAC_mg2Jpgn)
+The script will check for and start up a kind cluster, build and deploy the app and exploit pods and present a 3-section tmux session for the demo.
 
-### Chainguard Academy: https://edu.chainguard.dev/
+The tmux session sections should show
+1. 
 
-* [Migration Guides](https://edu.chainguard.dev/chainguard/migration/)
-* [Learning Paths](https://edu.chainguard.dev/chainguard/learning-paths/)
+[git]: https://git-scm.com/
+[kind]: https://kind.sigs.k8s.io/
+[cve]: https://nvd.nist.gov/vuln/detail/cve-2021-44228
+[kubectl-install]: https://kubernetes.io/docs/tasks/tools/#kubectl
+[tmux]: https://github.com/tmux/tmux/wiki/Installing
+[netcat]: https://netcat.sourceforge.net/

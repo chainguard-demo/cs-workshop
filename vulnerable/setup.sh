@@ -2,6 +2,24 @@
 set -e
 . ../base.sh
 
+# Parse command-line arguments
+VERBOSE=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -v)
+      VERBOSE=true
+      shift
+      ;;
+    tmux)
+      TMUX_MODE=true
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 function tmux-setup() {
   tmux new-session -d \; \
     send-keys 'kubectl get all' C-m \; \
@@ -17,7 +35,7 @@ function tmux-setup() {
 
 clear
 
-if [[ $1 == "tmux" ]]; then
+if [[ $TMUX_MODE == true ]]; then
   tmux-setup
   exit 0
 fi
@@ -60,10 +78,17 @@ sed -e "s/__REMOTE_HOST__/$REMOTE_HOST/g" \
     -e "s/__REMOTE_PORT__/$REMOTE_PORT/g" \
     log4shell-server/src/main/java/RemoteShell.orig > log4shell-server/src/main/java/RemoteShell.java
 
-echo -n "📦 Building chat-app image... " 
-docker build -q chat-app -f chat-app/Dockerfile -t chat-app
-echo -n "📦 Building log4shell-server image... " 
-docker build -q log4shell-server -f log4shell-server/Dockerfile -t log4shell-server
+# Set docker build options based on verbose flag
+if [[ $VERBOSE == true ]]; then
+  DOCKER_BUILD_OPTS="--progress=plain"
+else
+  DOCKER_BUILD_OPTS="-q"
+fi
+
+echo "📦 Building chat-app image..."
+docker build $DOCKER_BUILD_OPTS chat-app -f chat-app/Dockerfile -t chat-app
+echo "📦 Building log4shell-server image..."
+docker build $DOCKER_BUILD_OPTS log4shell-server -f log4shell-server/Dockerfile -t log4shell-server
 
 banner "Populating images into kind node(s)"
 echo "🚚 Loading chat-app images into kind cluster"
@@ -72,10 +97,18 @@ echo "🚚 Loading log4shell-server images into kind cluster"
 kind load docker-image log4shell-server --name vulnerable
 
 banner "Deploying apps"
+
+# Set kubectl options based on verbose flag
+if [[ $VERBOSE == true ]]; then
+  KUBECTL_OPTS="-v=6"
+else
+  KUBECTL_OPTS=""
+fi
+
 echo "🚀 Deploying chat-app"
-kubectl apply -f chat-app/deployment.yaml
+kubectl apply $KUBECTL_OPTS -f chat-app/deployment.yaml
 echo "🚀 Deploying log4shell-server"
-kubectl apply -f log4shell-server/deployment.yaml
+kubectl apply $KUBECTL_OPTS -f log4shell-server/deployment.yaml
 
 banner "Testing..."
 echo "⌚️ Waiting for chat-app to be available..."

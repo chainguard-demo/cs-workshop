@@ -27,6 +27,8 @@ The script will check for and start up a kind cluster, build and deploy the app 
 The tmux session sections should show
 1. 
 
+### TODO - Finish this
+
 [git]: https://git-scm.com/
 [kind]: https://kind.sigs.k8s.io/
 [cve]: https://nvd.nist.gov/vuln/detail/cve-2021-44228

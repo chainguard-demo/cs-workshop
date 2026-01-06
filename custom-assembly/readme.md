@@ -34,9 +34,6 @@ This is meant to be a straightforward example of CA using the console.
 2. Select the org (if you have multiple) to use, this demo uses the cs-ttt-demo.dev Chainguard org.
 3. Select Organization Images tab
 4. Select the `custom-python-ui-demo` image
-
-    **Note:**If the image is CA enabled, you will see the "Customize Image" button on the top right of the screen. If CA has been enabled globally you should see this for all images.
-
 5. (Optional) Prior to customizing the image try to run curl: 
 
     From your terminal run:
@@ -52,11 +49,19 @@ This is meant to be a straightforward example of CA using the console.
     The list that appears contains all of the entitled packages that can be added to the image, i.e. these are all the packages the org is entitled to.  
 
 7. Select package(s) to add to the image e.g. `curl`.
-8. Select "Preview Changes"
+8. Select "Continue"
+9. Choose if you would like you create a new image or customize the current image. 
+
+    If you select `Customize the current image`, the curl package will be included in your "custom-python-ui-demo" image from now going forward. Use this option when you know for certain that you would like `curl` to always be included in your image and there will be no need for any other variants. 
+
+    If you select `Create a new image`, a duplicate image repo will be created, based on the original, but with the new packaged added. Use this option when users may still need to use the original image without customization, but you are seeking to provide an image that also has additional packages.
+
+    For this excercise, select `Customize the current image`.
+10. Select "Preview changes"
 
     This view highlights of the changes to be made, and note the warnings that are display about CA images.
 
-9.  Select "Apply Changes"
+9.  Select "Create"
 10. Select "Go to Builds"
 
     This will take the user to the builds page, you may need to hit the "Refresh" button a few times in order to see the status of the build (it can take a bit for the builds to show up on the builds page).
@@ -67,7 +72,7 @@ This is meant to be a straightforward example of CA using the console.
 
     When the build is completed (successful or failed) you can select one of the rows and display the logs. 
 
-    If a build fails due to a transient infrastructure issue they will be retried. If a build fails due to something else, for example a package not being available for a specific architecture (e.g. arm64 or x86_64), you can say they should reach out to your CS team, or open a support ticket.
+    If a build fails due to a transient infrastructure issue they will be retried. If a build fails due to something else, for example a package not being available for a specific architecture (e.g. arm64 or x86_64), reach out to your CS team or open a support ticket.
 
     After the build has completed navigate to the "SBOM" tab of the page.
 
@@ -75,7 +80,7 @@ This is meant to be a straightforward example of CA using the console.
 
     Show that the packages added now show up in the SBOM. If you search for `curl` you should see it along with the dependency `libcurl-openssl4` that was also installed as part of adding curl to the image.
 
-12. (Optional) Run the custom image to verify curl has been installed:
+12. (Optional) Run the custom image to verify curl has been installed. Keep in mind that if you selected `Create a new image` that you will need to use that image name. 
 
     ```
     docker run --pull=always  --rm --entrypoint curl cgr.dev/cs-ttt-demo.dev/custom-python-ui-demo:latest -v https://chainguard.dev
@@ -145,7 +150,7 @@ In this example we will walk through converting a Dockerfile which is currently 
 
 4.  Create Builder Custom YAML File
 
-    Now we will utilize Custom Assemble to replicate this docker build. We will use two CA images in this example, one for the buildtime dependencies and another for the final runtime image.
+    Now we will utilize Custom Assembly to replicate this docker build. We will use two CA images in this example, one for the buildtime dependencies and another for the final runtime image.
 
     The first step is to create a yaml file defining the packages we want to install on the custom images.
 
@@ -162,7 +167,16 @@ In this example we will walk through converting a Dockerfile which is currently 
 
 5.  Use chainctl to apply the customizations to the builder image
 
-    Use chainctl to apply the changes to the `custom-python-chainctl-demo-dev` custom image.  Note: the --parent parameter may be changed if you are using a different Chainguard org and the --repo parameter may be changed if you are using a different CA image. Here we use the --yes flag to auto confirm the changes.
+    Use chainctl to apply the changes to the `custom-python-chainctl-demo-dev` custom image.  Here we will utilize some command switches that are documented [here](https://edu.chainguard.dev/chainguard/chainctl/chainctl-docs/chainctl_images_repos_build_apply/) 
+    
+    ```
+    --parent string    The name or id of the parent location to apply build config.
+    --repo string      The name or id of the repo to apply build config.
+    --save-as string   Create a new repo with the edited configuration instead of updating the existing one.
+    -y, --yes          Automatic yes to prompts; assume "yes" as answer to all prompts and run non-interactively.
+    ```
+
+    Note: the --parent parameter may be changed if you are using a different Chainguard org. Here we use the --yes flag to auto confirm the changes.
 
     ```
     ORGANIZATION="cs-ttt-demo.dev"
@@ -170,6 +184,16 @@ In this example we will walk through converting a Dockerfile which is currently 
 
     chainctl image repo build apply -f python-ca-builder.yaml --parent $ORGANIZATION --repo $REPO --yes
     ```
+
+    Note: if you want to save this image as a different name, similar to the `Create a new image` option on the web, use the --save-as parameter in addtion to the --repo. The --repo parameter specifies the source repo you are creating the image from.
+
+    ```
+    ORGANIZATION="cs-ttt-demo.dev"
+    REPO="custom-python-curl-chainctl-demo-dev"
+
+    chainctl image repo build apply -f python-ca-builder.yaml --parent $ORGANIZATION --save-as $REPO  --yes
+    ```
+
 
 6. Get status of the build
 

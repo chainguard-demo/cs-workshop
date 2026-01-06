@@ -52,7 +52,7 @@ This is meant to be a straightforward example of CA using the console.
 8. Select "Continue"
 9. Choose if you would like you create a new image or customize the current image. 
 
-    If you select `Customize the current image`, the curl package will be included in your "custom-python-ui-demo" image from now going forward. Use this option when you know for certain that you would like `curl` to always be included in your image and there will be no need for any other variants. 
+    If you select `Customize the current image`, the curl package will be included in your "custom-python-ui-demo" image in every tag. Use this option when you know for certain that you would like `curl` to always be included in your image and there will be no need for any other variants. If you add specific versions of a package it may break certain tag builds.
 
     If you select `Create a new image`, a duplicate image repo will be created, based on the original, but with the new packaged added. Use this option when users may still need to use the original image without customization, but you are seeking to provide an image that also has additional packages.
 
@@ -176,7 +176,7 @@ In this example we will walk through converting a Dockerfile which is currently 
     -y, --yes          Automatic yes to prompts; assume "yes" as answer to all prompts and run non-interactively.
     ```
 
-    Note: the --parent parameter may be changed if you are using a different Chainguard org. Here we use the --yes flag to auto confirm the changes.
+    Note: the --parent parameter may be changed if you are using a different Chainguard org. Here we use the --yes flag to auto confirm the changes. Remember that changes to an existing image will affect every tag. This may break the functionality of other tags depending on how your organization uses tags. 
 
     ```
     ORGANIZATION="cs-ttt-demo.dev"
@@ -185,13 +185,14 @@ In this example we will walk through converting a Dockerfile which is currently 
     chainctl image repo build apply -f python-ca-builder.yaml --parent $ORGANIZATION --repo $REPO --yes
     ```
 
-    Note: if you want to save this image as a different name, similar to the `Create a new image` option on the web, use the --save-as parameter in addtion to the --repo. The --repo parameter specifies the source repo you are creating the image from.
+    Note: if you want to save this image as a different name, similar to the `Create a new image` option on the web, use the --save-as parameter in addtion to the --repo paremeter. The --repo parameter specifies the source repo you are creating the image from.
 
     ```
     ORGANIZATION="cs-ttt-demo.dev"
     REPO="custom-python-curl-chainctl-demo-dev"
+    NEW_REPO="mariadb-python-chainctl-demo-dev"
 
-    chainctl image repo build apply -f python-ca-builder.yaml --parent $ORGANIZATION --save-as $REPO  --yes
+    chainctl image repo build apply -f python-ca-builder.yaml --parent $ORGANIZATION --repo $REPO --save-as $NEW_REPO  --yes
     ```
 
 

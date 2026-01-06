@@ -8,7 +8,7 @@
   - [Using Custom Assembly with the API](#using-custom-assembly-with-the-api)
 
 ## Overview
-This directory contains examples for using Custom Assembly to customize Chainguard images.  This example covers three scenarios:
+This directory contains examples for using Custom Assembly to customize Chainguard images.  This example covers two scenarios:
 1. Using the Console UI to customize images
 2. Using chainctl to customize images
 
@@ -20,7 +20,8 @@ This guide utilizes the cs-ttt-demo.dev registry, it is not necessary to use it 
 
 
 ## Pre-requisites
-1. chainctl is installed and user has access to the chainguard org. NOTE: The user must have either the editor or ownership role in order to customize images. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
+1. chainctl is installed and user has access to the chainguard org. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
+> NOTE: The user must have either the Owner role, or a Custom role with the the repo.update (to edit existing images) or repo.create (to create new images) permissions in order to customize images.
 2. Docker installed to run images
 3. For the chainctl demo below, the mariadb image must be in your registry or the package must exist in your Private APK Repo.
 
@@ -52,7 +53,8 @@ This is meant to be a straightforward example of CA using the console.
 8. Select "Continue"
 9. Choose if you would like you create a new image or customize the current image. 
 
-    If you select `Customize the current image`, the curl package will be included in your "custom-python-ui-demo" image in every tag. Use this option when you know for certain that you would like `curl` to always be included in your image and there will be no need for any other variants. If you add specific versions of a package it may break certain tag builds.
+    If you select `Customize the current image`, the curl package will be included in your "custom-python-ui-demo" image in every tag. Use this option when you know for certain that you would like `curl` to always be included in your image and there will be no need for any other variants. 
+    > IMPORTANT: If you add specific versions of a package it may break certain tag builds.
 
     If you select `Create a new image`, a duplicate image repo will be created, based on the original, but with the new packaged added. Use this option when users may still need to use the original image without customization, but you are seeking to provide an image that also has additional packages.
 

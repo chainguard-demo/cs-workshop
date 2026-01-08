@@ -68,7 +68,7 @@ For this demo all builds will use **containerized environments** to avoid needin
 - **chainctl** CLI tool to scan artifacts.  chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **jq** installed for JSON parsing  
 - A **Chainguard organization name** (e.g. `myorg.com`) that has Java ecosystem entitlements. 
-- Network Access to `libraries.cgr.dev/maven/`
+- Network Access to `https://libraries.cgr.dev/maven/`
 - Docker installed to run images
 ---
 

@@ -56,7 +56,8 @@ We’ll work through three stages:
    Demonstrate how to view Provenance details for Chainguard Python Libraries.
 
 
-For this demo all builds will use **containerized environments** to avoid needing to have a local python setup. We will also be using `uv` instead of `pip` to install python dependencies since it is faster, and also preserves repo precedence when doing builds with Chainguard Libraries.  **Note:** It is NOT recommended to use pip when pulling python dependencies directly from the Chainguard repo as it doesn't guarantee dependencies will be pull from Chainguard over PyPI. 
+For this demo all builds will use **containerized environments** to avoid needing to have a local python setup. We will also be using `uv` instead of `pip` to install python dependencies since it is faster, and also preserves repo precedence when doing builds with Chainguard Libraries.
+>⚠️ It is NOT recommended to use pip when pulling python dependencies directly from the Chainguard repo as it doesn't guarantee dependencies will be pull from Chainguard over PyPI. 
 
 ---
 

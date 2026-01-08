@@ -166,7 +166,7 @@ After the build, you’ll scan to verify that dependencies now originate from Ch
 ```bash
 # Request a Chainguard library token for the Java ecosystem.
 CREDS_OUTPUT=$(chainctl auth pull-token \
-  --library-ecosystem="${ECOSYSTEM}"   
+  --repository="${ECOSYSTEM}" \
   --parent="${ORG_NAME}" \
   --name="${TOKEN_NAME}" \
   --ttl="${TTL}" -o json)

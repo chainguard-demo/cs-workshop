@@ -63,7 +63,8 @@ For this demo all builds will use **containerized environments** to avoid needin
 
 ## 🧰 Prerequisites
 
-- **chainctl** is installed and user has access to the chainguard org with java ecosystem entitlements. NOTE: The user must have the `libraries.java.pull` role in order to access libraries from `https://libraries.cgr.dev/maven/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
+- **chainctl** is installed and user has access to the chainguard org with java ecosystem entitlements. 
+> NOTE: The user must have the `libraries.java.pull` role in order to access libraries from `https://libraries.cgr.dev/maven/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **chainctl** CLI tool to scan artifacts.  chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **jq** installed for JSON parsing  
 - A **Chainguard organization name** (e.g. `myorg.com`) that has Java ecosystem entitlements. 
@@ -96,6 +97,9 @@ It provides a baseline for functionality and scanning before any Chainguard cont
 View the Java dependencies in the pom file:
 
 ```bash
+# Change Directory into the step1-orig folder
+cd cs-workshop/chainguard-libraries/java/step1-orig
+
 # Print only the <dependencies> section from pom.xml to see what the app depends on.
 awk '/<dependencies>/,/<\/dependencies>/' pom.xml
 ```
@@ -274,6 +278,7 @@ docker build \
 ```bash
 # Start the app using the Chainguard-built container.
 docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG
+sleep 3
 curl http://localhost:8081
 
 # Copy the JAR so that we can scan it with chainctl.
@@ -327,7 +332,7 @@ This removes temporary tokens, images, and jar artifacts created during the work
 # Look up and delete the temporary identity used for the Chainguard pull token.
 ID=$(chainctl iam ids ls --parent="$ORG_NAME" -o json | jq -r --arg name "$TOKEN_NAME" '.items[] | select(.name | startswith($name)) | .id')
 chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
-
+docker image ls | grep java-lib-example | awk '{print $3}' | xargs docker image rm $1
 ```
 ---
 

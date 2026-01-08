@@ -332,6 +332,8 @@ This removes temporary tokens, images, and jar artifacts created during the work
 # Look up and delete the temporary identity used for the Chainguard pull token.
 ID=$(chainctl iam ids ls --parent="$ORG_NAME" -o json | jq -r --arg name "$TOKEN_NAME" '.items[] | select(.name | startswith($name)) | .id')
 chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
+
+# Remove the Docker images that were created
 docker image ls | grep java-lib-example | awk '{print $3}' | xargs docker image rm $1
 ```
 ---

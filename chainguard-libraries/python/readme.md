@@ -331,6 +331,9 @@ chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
 
 # Remove the pip.conf file
 rm .netrc
+
+# Remove the Docker images that were created
+docker image ls | grep python-lib-example | awk '{print $3}' | xargs docker image rm $1
 ```
 
 ---

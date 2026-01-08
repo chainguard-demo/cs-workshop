@@ -210,11 +210,12 @@ BUILDER_IMAGE="$UPSTREAM_PYTHON_IMAGE"
 RUNTIME_IMAGE="${UPSTREAM_PYTHON_IMAGE}-slim"
 
 # Build the image:
-docker build \ 
+docker build \
   --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
-  --secret id=pip_conf,src=./pip.conf \
-  -t python-lib-example:$TAG   -f ../step2-cg-build/Dockerfile .
+  --secret id=netrc,src=./.netrc \
+  -t python-lib-example:$TAG \
+  -f ../step2-cg-build/Dockerfile .
 ```
 
 ### 5. Run, test, and scan

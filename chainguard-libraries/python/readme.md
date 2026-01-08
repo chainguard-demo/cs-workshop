@@ -306,11 +306,10 @@ Each Chainguard-built dependency includes an SBOM under
 Inspect provenance for a specific package, note that the SBOM indicates that the dependency was built by Chainguard, and the git url and commit hash can be verified.
 ```bash
 # Account for python version updates down the road
-set -- ./venv/lib/python*
-PYTHON_VERSION=$(basename "$1")
+CGR_PYTHON_VERSION=$(docker exec python-lib-example python --version | awk '{print $2}' | cut -d . -f1,2)
 
 # Use JQ to read the sbom file
-jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}'   venv/lib/${PYTHON_VERSION}/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq .
+jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}'   venv/lib/${CGR_PYTHON_VERSION}/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq .
 ```
 
 

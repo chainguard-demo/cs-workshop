@@ -95,6 +95,8 @@ This stage builds and runs a simple Flask app using upstream Python images and d
 ### 1. Inspect dependencies
 
 ```bash
+# Change Directory into the step1-orig directory 
+cd cs-workshop/chainguard-libraries/python/step1-orig
 # Review the dependencies used by the application.
 cat requirements.txt
 ```
@@ -135,7 +137,7 @@ curl -F "file=@linky.png" http://127.0.0.1:5055/upload
 ```
 
 ### 6. Scan with chainctl
-In this step we will use chainctl to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI since we haven't built with the Chainguard repo yet we expect the output to be 0%.
+In this step we will use chainctl to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI. Since we haven't built with the Chainguard repo yet we expect the output to be 0%.
 
 ```bash
 # Copy the virtual environment from the container for scanning.

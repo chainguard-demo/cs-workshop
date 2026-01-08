@@ -123,7 +123,9 @@ RUNTIME_IMAGE="${UPSTREAM_PYTHON_IMAGE}-slim"
 
 ```bash
 # Build the app using the upstream Maven builder and Temurin runtime.
-docker build --build-arg BUILDER_IMAGE=$BUILDER_IMAGE   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE   -t python-lib-example:$TAG .
+docker build --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
+  --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
+  -t python-lib-example:$TAG .
 ```
 
 ### 5. Run and test

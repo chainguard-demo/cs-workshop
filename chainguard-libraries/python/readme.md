@@ -56,7 +56,8 @@ We’ll work through three stages:
    Demonstrate how to view Provenance details for Chainguard Python Libraries.
 
 
-For this demo all builds will use **containerized environments** to avoid needing to have a local python setup. We will also be using `uv` instead of `pip` to install python dependencies since it is faster, and also preserves repo precedence when doing builds with Chainguard Libraries.  **Note:** It is NOT recommended to use pip when pulling python dependencies directly from the Chainguard repo as it doesn't guarantee dependencies will be pull from Chainguard over PyPI. 
+For this demo all builds will use **containerized environments** to avoid needing to have a local python setup. We will also be using `uv` instead of `pip` to install python dependencies since it is faster, and also preserves repo precedence when doing builds with Chainguard Libraries.
+>⚠️ It is NOT recommended to use pip when pulling python dependencies directly from the Chainguard repo as it doesn't guarantee dependencies will be pull from Chainguard over PyPI. 
 
 ---
 
@@ -94,6 +95,8 @@ This stage builds and runs a simple Flask app using upstream Python images and d
 ### 1. Inspect dependencies
 
 ```bash
+# Change Directory into the step1-orig directory 
+cd cs-workshop/chainguard-libraries/python/step1-orig
 # Review the dependencies used by the application.
 cat requirements.txt
 ```
@@ -120,7 +123,9 @@ RUNTIME_IMAGE="${UPSTREAM_PYTHON_IMAGE}-slim"
 
 ```bash
 # Build the app using the upstream Maven builder and Temurin runtime.
-docker build --build-arg BUILDER_IMAGE=$BUILDER_IMAGE   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE   -t python-lib-example:$TAG .
+docker build --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
+  --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
+  -t python-lib-example:$TAG .
 ```
 
 ### 5. Run and test
@@ -134,7 +139,7 @@ curl -F "file=@linky.png" http://127.0.0.1:5055/upload
 ```
 
 ### 6. Scan with chainctl
-In this step we will use chainctl to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI since we haven't built with the Chainguard repo yet we expect the output to be 0%.
+In this step we will use chainctl to scan the venv directory to determine how many dependencies came from Chainguard repo vs. upstream PyPI. Since we haven't built with the Chainguard repo yet we expect the output to be 0%.
 
 ```bash
 # Copy the virtual environment from the container for scanning.
@@ -163,7 +168,7 @@ After the build, you’ll scan to verify that dependencies now originate from Ch
 ```bash
 # Request a Chainguard library token for the Java ecosystem.
 CREDS_OUTPUT=$(chainctl auth pull-token \
-  --library-ecosystem="${ECOSYSTEM}"   
+  --repository="${ECOSYSTEM}" \
   --parent="${ORG_NAME}" \
   --name="${TOKEN_NAME}" \
   --ttl="${TTL}" -o json)
@@ -207,11 +212,12 @@ BUILDER_IMAGE="$UPSTREAM_PYTHON_IMAGE"
 RUNTIME_IMAGE="${UPSTREAM_PYTHON_IMAGE}-slim"
 
 # Build the image:
-docker build \ 
+docker build \
   --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
-  --secret id=pip_conf,src=./pip.conf \
-  -t python-lib-example:$TAG   -f ../step2-cg-build/Dockerfile .
+  --secret id=netrc,src=./.netrc \
+  -t python-lib-example:$TAG \
+  -f ../step2-cg-build/Dockerfile .
 ```
 
 ### 5. Run, test, and scan
@@ -299,7 +305,11 @@ Each Chainguard-built dependency includes an SBOM under
 
 Inspect provenance for a specific package, note that the SBOM indicates that the dependency was built by Chainguard, and the git url and commit hash can be verified.
 ```bash
-jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}'   venv/lib/python3.13/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq .
+# Account for python version updates down the road
+CGR_PYTHON_VERSION=$(docker exec python-lib-example python --version | awk '{print $2}' | cut -d . -f1,2)
+
+# Use JQ to read the sbom file
+jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}'   venv/lib/${CGR_PYTHON_VERSION}/site-packages/flask-3.0.2.dist-info/sboms/sbom.spdx.json | jq .
 ```
 
 
@@ -322,6 +332,9 @@ chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
 
 # Remove the pip.conf file
 rm .netrc
+
+# Remove the Docker images that were created
+docker image ls | grep python-lib-example | awk '{print $3}' | xargs docker image rm $1
 ```
 
 ---

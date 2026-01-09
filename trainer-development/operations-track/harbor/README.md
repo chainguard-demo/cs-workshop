@@ -111,6 +111,16 @@ Pull an image from the `cgr-proxy` project.
 docker pull localhost:80/cgr-proxy/{ORG_NAME}/python:latest
 ```
 
+(OPTIONAL) Pull a helm chart from the `cgr-proxy` project. 
+> ❌ `kafka:latest` and `--version latest` won't work, even though the latest tag exists.
+> See https://github.com/helm/helm/issues/10670#issuecomment-1041821407
+> Omit the --version flag to get the "latest" version of the chart; only for demo purposes.
+
+> ✅ Using the digest will work, e.g. `kafka@sha256:e4a1...` 
+```
+helm pull oci://localhost:80/cgr-proxy/${ORG_NAME}/iamguarded-charts/kafka --plain-http
+```
+
 Vist http://localhost/harbor/projects. You should see the image under the
 `cgr-proxy` project.
 

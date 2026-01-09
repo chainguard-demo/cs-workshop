@@ -116,7 +116,7 @@ Pull a helm chart from the `cgr-proxy` project.
 
 > ✅ Using the digest will work, e.g. `kafka@sha256:e4a1...` 
 ```
-helm pull oci://localhost:80/cgr-proxy/{ORG_NAME}/iamguarded-charts/kafka --plain-http
+helm pull oci://localhost:80/cgr-proxy/${ORG_NAME}/iamguarded-charts/kafka --plain-http
 ```
 
 Vist http://localhost/harbor/projects. You should see the image under the

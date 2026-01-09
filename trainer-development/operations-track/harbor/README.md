@@ -116,7 +116,7 @@ docker pull localhost:80/cgr-proxy/{ORG_NAME}/python:latest
 
 > ✅ Using the digest will work, e.g. `kafka@sha256:e4a1...` 
 ```
-helm pull oci://localhost:80/cgr-proxy/${ORG_NAME}/iamguarded-charts/kafka --version v32.4.3 --plain-http
+helm pull oci://localhost:80/cgr-proxy/${ORG_NAME}/iamguarded-charts/kafka:32.4.3 --plain-http
 ```
 
 Vist http://localhost/harbor/projects. You should see the image under the

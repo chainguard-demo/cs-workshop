@@ -3,10 +3,10 @@ FROM cgr.dev/chainguard/python:latest-dev AS build
 USER root
 # Note we are copying from the non-dev image here, this needs to match the final image base
 COPY --from=cgr.dev/chainguard/python:latest / /base-chroot
-RUN apk add --no-cache --no-commit-hooks --no-scripts --root /base-chroot bash-binsh && \
-    apk add --no-cache --root /base-chroot mariadb-connector-c-dev mariadb && \
-    apk del --no-cache --no-commit-hooks --no-scripts --root /base-chroot bash-binsh
+RUN apk add --no-cache --no-commit-hooks --no-scripts --root /base-chroot bash-binsh 
+RUN apk add --no-cache --root /base-chroot jq
+RUN apk del --no-cache --no-commit-hooks --no-scripts --root /base-chroot bash-binsh
 
 FROM cgr.dev/chainguard/python:latest
 # Copy over the apks prep'ed at the end of the build stage (no apk-add in this image)
-COPY --from=build /base-chroot /
+COPY --from=build --link /base-chroot /

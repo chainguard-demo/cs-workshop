@@ -43,7 +43,7 @@ docker run --rm celery-demo:fixed
 ```bash
 cd ../step3-cg
 
-CREDS=$(chainctl auth pull-token --repository=python --parent=$ORG_NAME --name="py-demo-$USER" --ttl=8h -o json)
+CREDS=$(chainctl auth pull-token --repository=python --parent=$ORG_NAME --name="py-demo-$USER" --ttl=1h -o json)
 cat > .netrc <<EOF
 machine libraries.cgr.dev
   login $(echo $CREDS | jq -r .identity_id)
@@ -53,10 +53,7 @@ EOF
 docker build --secret id=netrc,src=.netrc -t celery-demo:remediated .
 docker run --rm celery-demo:remediated
 
-docker run -d --name scan celery-demo:remediated sleep 3600
-docker cp scan:/app/venv .
-chainctl libraries verify --parent $ORG_NAME venv
-docker stop scan && docker rm scan && rm -rf venv
+chainctl libraries verify celery-demo:remediated
 ```
 
 ## Cleanup

@@ -1,0 +1,17 @@
+[[tool.uv.index]]
+name = "cgr-pr"
+url = "https://libraries.cgr.dev/python-remediated/simple"
+authenticate = "always"
+
+[[tool.uv.index]]
+name = "cgr-p"
+url = "https://libraries.cgr.dev/python/simple"
+authenticate = "always"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple/"
+default = true # important to treat it as lowest priority
+
+[tool.uv]
+index-strategy = "unsafe-best-match"

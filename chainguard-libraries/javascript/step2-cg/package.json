@@ -1,0 +1,21 @@
+{
+  "name": "js-lib-example",
+  "version": "1.0.0",
+  "description": "Demo Node.js application for Chainguard Libraries workshop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "lodash",
+    "uuid",
+    "chainguard",
+    "demo"
+  ],
+  "author": "Chainguard",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1"
+  }
+}

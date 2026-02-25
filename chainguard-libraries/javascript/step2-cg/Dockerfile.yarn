@@ -1,0 +1,11 @@
+FROM node:25
+WORKDIR /app
+
+COPY package.json server.js ./
+
+RUN --mount=type=secret,id=yarnrc,target=/app/.yarnrc.yml,uid=65532 \
+    yarn cache clean && \
+    yarn install 
+
+EXPOSE 3000
+CMD ["node", "server.js"]

@@ -1,11 +1,4 @@
-# syntax=docker/dockerfile:1.6
-
-##########################
-# Stage 1 – Build
-##########################
-ARG BUILDER_IMAGE=python
-ARG RUNTIME_IMAGE=python:slim
-FROM ${BUILDER_IMAGE} AS builder
+FROM python
 
 WORKDIR /app
 
@@ -34,20 +27,3 @@ COPY app.py worker_process.py ./
 
 EXPOSE 5055
 ENTRYPOINT ["/app/venv/bin/python", "app.py"]
-
-
-##########################
-# Stage 2 – Runtime
-##########################
-FROM ${RUNTIME_IMAGE}
-
-WORKDIR /app
-
-COPY --from=builder /app/venv /app/venv
-COPY --from=builder /app/app.py /app/worker_process.py ./
-
-ENV PATH="/app/venv/bin:$PATH"
-
-EXPOSE 5055
-ENTRYPOINT ["/app/venv/bin/python", "app.py"]
-

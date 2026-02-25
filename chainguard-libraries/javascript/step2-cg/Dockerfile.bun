@@ -1,0 +1,7 @@
+FROM oven/bun:1
+WORKDIR /app
+COPY package.json server.js ./
+RUN --mount=type=secret,id=bunfig,target=/app/bunfig.toml \
+    bun install 
+EXPOSE 3000
+CMD ["bun", "run", "server.js"]

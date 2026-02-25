@@ -1,0 +1,36 @@
+# Chainguard credentials - NEVER commit these!
+.npmrc
+.yarnrc.yml
+bunfig.toml
+.netrc
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Package manager lock files (these can be regenerated)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

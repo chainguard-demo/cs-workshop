@@ -1,7 +1,7 @@
 - [Chainguard Libraries Workshops](#chainguard-libraries-workshops)
   - [🟨 Java Workshop](#-java-workshop)
   - [🐍 Python Workshop](#-python-workshop)
-  - [🟦 JavaScript Workshop *(Coming Soon)*](#-javascript-workshop-coming-soon)
+  - [🟦 JavaScript Workshop](#-javascript-workshop)
   - [🛡️ Python CVE Mitigation Workshop *(Coming Soon)*](#️-python-cve-mitigation-workshop-coming-soon)
   - [📘 About These Workshops](#-about-these-workshops)
   - [🚀 Getting Started](#-getting-started)
@@ -47,17 +47,21 @@ Start here → [`python/`](python/readme.md)
 
 ---
 
-## 🟦 JavaScript Workshop *(Coming Soon)*  
-**Folder:** `javascript/` *(placeholder)*
+## 🟦 JavaScript Workshop
+**Folder:** [`javascript/`](javascript/)
 
-This upcoming workshop will demonstrate:
-- Migrating JavaScript/Node applications from **npm** to **Chainguard Libraries for JavaScript**
-- Updating `.npmrc`, workspace configs, and CI/CD build steps
-- Working with npm, Yarn, and pnpm configurations
-- Ensuring verified and reproducible dependency sourcing
-- Scanning JavaScript artifacts and validating provenance
+The JavaScript workshop walks you through rebuilding an Express.js application using:
+- Upstream npm registry with Node.js images
+- Chainguard Libraries with multiple package managers:
+  - **npm** - Node Package Manager (default)
+  - **pnpm** - Fast, disk space efficient package manager
+  - **Yarn** - Modern package manager with workspaces support
+  - **Bun** - Fast all-in-one JavaScript runtime and toolkit
+- chainctl scanning and verification of dependency origin
 
-📦 **Status:** *Content coming soon — workshop under development!*
+This workshop is ideal for teams using Node.js applications and wanting to migrate from the public npm registry to Chainguard's verified JavaScript ecosystem, regardless of which package manager they prefer.
+
+Start here → [`javascript/`](javascript/readme.md)
 
 ---
 
@@ -86,7 +90,9 @@ Clone this repository and navigate to your desired workshop:
 git clone https://github.com/chainguard-demo/cs-workshop
 cd chainguard-libraries/java
 # -- or --
-cd chainguard-libraries/python 
+cd chainguard-libraries/python
+# -- or --
+cd chainguard-libraries/javascript
 ```
 
 Follow the detailed walkthrough inside each folder (or placeholder) to complete the workshop or run the demo.sh script for a scripted walkthrough.

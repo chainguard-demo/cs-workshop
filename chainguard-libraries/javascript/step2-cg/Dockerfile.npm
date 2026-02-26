@@ -1,0 +1,9 @@
+FROM node:25
+WORKDIR /app
+
+COPY package.json server.js ./
+RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
+    npm install
+
+EXPOSE 3000
+CMD ["node", "server.js"]

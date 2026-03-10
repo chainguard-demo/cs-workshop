@@ -43,11 +43,12 @@ docker run --rm celery-demo:fixed
 ```bash
 cd ../step3-cg
 
-CREDS=$(chainctl auth pull-token --repository=python --parent=$ORG_NAME --name="py-demo-$USER" --ttl=1h -o json)
+# This produces two env vars: CHAINGUARD_PYTHON_IDENTITY_ID and CHAINGUARD_PYTHON_TOKEN
+eval $(chainctl auth pull-token --repository=python --parent=$ORG_NAME --name="py-demo-$USER" --ttl=1h -o env)
 cat > .netrc <<EOF
 machine libraries.cgr.dev
-  login $(echo $CREDS | jq -r .identity_id)
-  password $(echo $CREDS | jq -r .token)
+  login ${CHAINGUARD_PYTHON_IDENTITY_ID}
+  password ${CHAINGUARD_PYTHON_TOKEN}
 EOF
 
 docker build --secret id=netrc,src=.netrc -t celery-demo:remediated .

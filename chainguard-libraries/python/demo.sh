@@ -1,4 +1,4 @@
-#! env bash
+#!/usr/bin/env bash
 
 ###############################################################################
 # Demo Magic Script: Python Libraries Workshop
@@ -85,17 +85,15 @@ pei 'docker stop python-lib-example && docker rm python-lib-example'
 banner "Step 2: Build with Chainguard Libraries and upstream Python images"
 
 p "# Create a pull token for the Python ecosystem."
-pei 'CREDS_OUTPUT=$(chainctl auth pull-token --repository="${ECOSYSTEM}" --parent="${ORG_NAME}" --name="${TOKEN_NAME}" --ttl="${TTL}" -o json)'
 
-pei 'export CGR_USER=$(echo $CREDS_OUTPUT | jq -r ".identity_id")'
-pei 'export CGR_TOKEN=$(echo $CREDS_OUTPUT | jq -r ".token")'
+pei 'eval $(chainctl auth pull-token --repository="${ECOSYSTEM}" --parent="${ORG_NAME}" --name="${TOKEN_NAME}" --ttl="${TTL}" -o env)'
 
 pei "# Create a .netrc file with credentials for the Chainguard Python repo."
 
 {
   echo "machine libraries.cgr.dev"
-  echo "  login ${CGR_USER}"
-  echo "  password ${CGR_TOKEN}"
+  echo "  login ${CHAINGUARD_PYTHON_IDENTITY_ID}"
+  echo "  password ${CHAINGUARD_PYTHON_TOKEN}"
 } > .netrc
 
 pei "TAG=\"upstream-cg-libs\""

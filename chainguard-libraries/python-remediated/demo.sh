@@ -49,12 +49,12 @@ wait
 pei "cd ../step3-cg"
 pe "cat requirements.txt"
 
-pei "CREDS=\$(chainctl auth pull-token --repository=python --parent=\$ORG_NAME --name=py-demo-\$USER --ttl=1h -o json)"
+pei "eval $(chainctl auth pull-token --repository=python --parent=\$ORG_NAME --name=py-demo-\$USER --ttl=1h -o env)"
 
 {
   echo "machine libraries.cgr.dev"
-  echo "login $(echo $CREDS | jq -r .identity_id)"
-  echo "password $(echo $CREDS | jq -r .token)"
+  echo "login ${CHAINGUARD_PYTHON_IDENTITY_ID}"
+  echo "password ${CHAINGUARD_PYTHON_TOKEN}"
 } > .netrc
 
 pe "cat pyproject.toml"

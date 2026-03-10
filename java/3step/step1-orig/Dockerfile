@@ -1,15 +1,15 @@
-FROM maven
-
-WORKDIR /work
-
-COPY src/ src/
-COPY pom.xml pom.xml
-
-RUN mvn clean package
-RUN REPOSITORY=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout) && rm -rf ${REPOSITORY}
+# Single-stage build: one image handles both compiling and running.
+# The JDK (Java Development Kit) includes everything needed — compiler + runtime.
+FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 
-RUN cp /work/target/java-demo-app-1.0.0.jar .
+# Copy the source code into the image
+COPY src/ src/
 
-ENTRYPOINT ["java", "-jar", "java-demo-app-1.0.0.jar"]
+# Compile the source code, then package it into a runnable JAR
+RUN mkdir out && \
+    javac -d out src/HelloServer.java && \
+    jar cfe app.jar HelloServer -C out .
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,0 +1,11 @@
+# syntax=docker/dockerfile:1
+FROM cgr.dev/chainguard/python:latest-dev
+
+# Pre-populate known_hosts to avoid interactive prompt
+RUN mkdir -p -m 0700 ~/.ssh && \
+    ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+# The SSH agent socket is forwarded into this step only — the private key never touches the image
+RUN --mount=type=ssh \
+    pip install \
+    git+ssh://git@github.com/myorg/private-package.git

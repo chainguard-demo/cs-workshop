@@ -1,16 +1,26 @@
-FROM cgr.dev/chainguard/maven:latest-dev AS builder
+# Multi-stage build using Chainguard images.
+# Same structure as before — but the base images are minimal and hardened.
 
-WORKDIR /work
+# --- Build stage ---
+# Chainguard JDK: compile the app using a hardened JDK base image
+FROM cgr.dev/chainguard/jdk:latest AS builder
+
+WORKDIR /build
 
 COPY src/ src/
-COPY pom.xml pom.xml
 
-RUN mvn clean package
+# Compile the source code, then package it into a runnable JAR
+RUN mkdir out && \
+    javac -d out src/HelloServer.java && \
+    jar cfe app.jar HelloServer -C out .
 
-FROM cgr.dev/chainguard/jre AS runner
+# --- Run stage ---
+# Chainguard JRE: minimal, hardened runtime — ships with far fewer CVEs
+FROM cgr.dev/chainguard/jre:latest AS runner
 
 WORKDIR /app
 
-COPY --from=builder /work/target/java-demo-app-1.0.0.jar .
+# Copy only the finished JAR from the build stage
+COPY --from=builder /build/app.jar .
 
-ENTRYPOINT ["java", "-jar", "java-demo-app-1.0.0.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -47,3 +47,45 @@ Steps:
    1. `cat Dockerfile.3`<br> Note the addition of the `libonig.so.5` library to the final image
    1. `docker build . -t mstage:3 -f Dockerfile.3`
    1. `docker run --rm -it mstage:3`<br>Now the `jq` command should work
+
+### Advanced BuildKit Features
+Steps:
+1. Cache mounts — measure the speedup
+   1. `cd buildkit`
+   1. `cat Dockerfile.nocache` and note the plain `pip install` with `--no-cache-dir`
+   1. `docker build . -t cache:1 -f Dockerfile.nocache` (cold build — note the time)
+   1. `touch requirements.txt` to invalidate the layer
+   1. `time docker build . -t cache:1 -f Dockerfile.nocache` _(slow again — full reinstall)_
+   1. `cat Dockerfile.cache` and note the `--mount=type=cache` on the `RUN` step
+   1. `docker build . -t cache:2 -f Dockerfile.cache` (cold build)
+   1. `touch requirements.txt`
+   1. `time docker build . -t cache:2 -f Dockerfile.cache` _(fast — packages pulled from cache)_
+
+1. Secret mounts — spot the difference in history
+   1. `echo "supersecrettoken" > token.txt`
+   1. `cat Dockerfile.secret` and note `--mount=type=secret`
+   1. `docker build --secret id=pip_token,src=./token.txt -t secret:1 .`
+   1. `docker image history secret:1` _(token is not visible)_
+   1. `cat Dockerfile.nosecret` and note `ARG PIP_TOKEN`
+   1. `docker build --build-arg PIP_TOKEN=supersecrettoken -t secret:2 -f Dockerfile.nosecret .`
+   1. `docker image history secret:2` _(token is visible in the RUN layer!)_
+   1. Add `token.txt` to `.gitignore` and `.dockerignore` — it's already done here as an example
+
+### Image Signing & Attestations
+Steps:
+1. Sign and verify your own image (Exercise 4.1)
+   1. `cd signing`
+   1. `cosign generate-key-pair`<br>Enter a password when prompted. This writes `cosign.key` (private) and `cosign.pub` (public).
+   1. `docker build . -t ttl.sh/cg-workshop-$USER:1h`
+   1. `docker push ttl.sh/cg-workshop-$USER:1h`<br>`ttl.sh` is a free ephemeral public registry — no login required. Images expire after the duration in the tag.
+   1. `IMAGE=$(crane digest ttl.sh/cg-workshop-$USER:1h)`
+   1. `cosign sign --key cosign.key ttl.sh/cg-workshop-$USER@${IMAGE}`
+   1. `cosign verify --key cosign.pub ttl.sh/cg-workshop-$USER@${IMAGE}`
+
+1. Generate and scan an SBOM (Exercise 4.2)
+   1. `syft cgr.dev/chainguard/python:latest`<br>Shows all packages in the image in table format
+   1. `syft cgr.dev/chainguard/python:latest -o spdx-json > sbom.json`
+   1. `jq '.packages | length' sbom.json`<br>Count the packages
+   1. `jq '.packages[].name' sbom.json`<br>List package names
+   1. `grype cgr.dev/chainguard/python:latest`<br>Scan for vulnerabilities — expect zero findings
+   1. `grype python:3.13-slim`<br>Compare against a standard Python image

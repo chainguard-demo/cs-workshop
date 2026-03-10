@@ -1,16 +1,26 @@
-FROM maven AS builder
+# Multi-stage build: use a larger image to build, then copy only what's needed into a smaller image to run.
 
-WORKDIR /work
+# --- Build stage ---
+# The JDK (Java Development Kit) includes the compiler (javac) needed to build the app.
+FROM eclipse-temurin:21-jdk AS builder
+
+WORKDIR /build
 
 COPY src/ src/
-COPY pom.xml pom.xml
 
-RUN mvn clean package
+# Compile the source code, then package it into a runnable JAR
+RUN mkdir out && \
+    javac -d out src/HelloServer.java && \
+    jar cfe app.jar HelloServer -C out .
 
-FROM eclipse-temurin AS runner
+# --- Run stage ---
+# The JRE (Java Runtime Environment) can run Java apps but cannot compile them.
+# It is smaller than the JDK, so the final image is leaner.
+FROM eclipse-temurin:21-jre AS runner
 
 WORKDIR /app
 
-COPY --from=builder /work/target/java-demo-app-1.0.0.jar .
+# Copy only the finished JAR from the build stage — nothing else comes along
+COPY --from=builder /build/app.jar .
 
-ENTRYPOINT ["java", "-jar", "java-demo-app-1.0.0.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

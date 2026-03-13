@@ -2,7 +2,7 @@
 
 # --- Build stage ---
 # The JDK (Java Development Kit) includes the compiler (javac) needed to build the app.
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 
 WORKDIR /build
 
@@ -16,7 +16,7 @@ RUN mkdir out && \
 # --- Run stage ---
 # The JRE (Java Runtime Environment) can run Java apps but cannot compile them.
 # It is smaller than the JDK, so the final image is leaner.
-FROM eclipse-temurin:21-jre AS runner
+FROM eclipse-temurin:25-jre AS runner
 
 WORKDIR /app
 

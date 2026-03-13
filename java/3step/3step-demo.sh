@@ -40,6 +40,3 @@ pe "curl http://localhost:8083"
 echo
 pe "docker images java-example"
 pe "grype java-example:3"
-pe "grype cgr.dev/chainguard/jre"
-
-

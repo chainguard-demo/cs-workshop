@@ -11,19 +11,17 @@ clear
 banner "Exercise 3.1: Cache Mounts — Measure the difference"
 
 $BATCAT Dockerfile.nocache
-p "docker build . -t cache:1 -f Dockerfile.nocache"
-docker build . -t cache:1 -f Dockerfile.nocache --quiet
-
-pe "touch requirements.txt"
+pe "time docker build . -t cache:1 -f Dockerfile.nocache"
+pe "echo '# invalidate cache' >> requirements.txt"
 pe "time docker build . -t cache:1 -f Dockerfile.nocache"
 
 wait
+pe "git checkout requirements.txt"
+pe "docker system prune -a"
 
 $BATCAT Dockerfile.cache
-p "docker build . -t cache:2 -f Dockerfile.cache"
-docker build . -t cache:2 -f Dockerfile.cache --quiet
-
-pe "touch requirements.txt"
+pe "time docker build . -t cache:2 -f Dockerfile.cache"
+pe "echo '# invalidate cache' >> requirements.txt"
 pe "time docker build . -t cache:2 -f Dockerfile.cache"
 
 wait

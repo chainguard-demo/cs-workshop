@@ -1,4 +1,7 @@
-FROM node:25
+ARG BUILDER_IMAGE="node:25"
+ARG RUNTIME_IMAGE="node:25-slim"
+
+FROM ${BUILDER_IMAGE}
 WORKDIR /app
 
 COPY package.json server.js ./

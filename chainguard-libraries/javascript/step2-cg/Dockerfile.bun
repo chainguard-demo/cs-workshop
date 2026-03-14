@@ -1,4 +1,7 @@
-FROM oven/bun:1
+ARG BUILDER_IMAGE="oven/bun:1"
+ARG RUNTIME_IMAGE="oven/bun:1-slim"
+
+FROM ${BUILDER_IMAGE}
 WORKDIR /app
 COPY package.json server.js ./
 RUN --mount=type=secret,id=bunfig,target=/app/bunfig.toml \

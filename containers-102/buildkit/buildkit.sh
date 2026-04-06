@@ -33,7 +33,7 @@ banner "Exercise 3.2: Secret Mounts — Spot the difference in history"
 echo "supersecrettoken" > token.txt
 
 $BATCAT Dockerfile.secret
-pe "docker build --secret id=pip_token,src=./token.txt -t secret:1 ."
+pe "docker build --secret id=pip_token,src=./token.txt -t secret:1 -f Dockerfile.secret ."
 pe "docker image history secret:1"
 
 wait

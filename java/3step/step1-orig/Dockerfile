@@ -1,6 +1,6 @@
 # Single-stage build: one image handles both compiling and running.
 # The JDK (Java Development Kit) includes everything needed — compiler + runtime.
-FROM eclipse-temurin:21-jdk
+FROM eclipse-temurin:25-jdk
 
 WORKDIR /app
 

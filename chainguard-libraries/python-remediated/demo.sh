@@ -49,7 +49,7 @@ wait
 pei "cd ../step3-cg"
 pe "cat requirements.txt"
 
-pei "eval $(chainctl auth pull-token --repository=python --parent=\$ORG_NAME --name=py-demo-\$USER --ttl=1h -o env)"
+pe "eval \$(chainctl auth pull-token --repository=python --parent=\$ORG_NAME --name=py-demo-\$USER --ttl=1h -o env)"
 
 {
   echo "machine libraries.cgr.dev"
@@ -67,13 +67,16 @@ pei "docker run --rm celery-demo:remediated"
 
 banner "Use chainctl libraries verify to determine package coverage from Chainguard."
 wait
-pei "chainctl libraries verify celery-demo:remediated"
+pei "docker create --name celery-remediated celery-demo:remediated"
+pei "docker cp celery-remediated:/app/venv ."
+pei "docker rm celery-remediated"
+pei "chainctl libraries verify -d venv"
 
 banner "Cleanup"
 wait
-pei "ID=\$(chainctl iam ids ls --parent=\$ORG_NAME -o json | jq -r '.items[] | select(.name | startswith(\"py-demo\")) | .id')"
-pei "chainctl iam identities delete \$ID --parent \$ORG_NAME --yes"
-pei "rm .netrc"
+pei "IDS=\$(chainctl iam ids ls --parent=\$ORG_NAME -o json | jq -r '.items[] | select(.name | startswith(\"py-demo\")) | .id')"
+pei 'while IFS= read -r ID; do chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes; done <<< "$IDS"'
+pei "rm -rf .netrc venv"
 pei "docker rmi celery-demo:vulnerable celery-demo:fixed celery-demo:remediated"
 
 echo -e "

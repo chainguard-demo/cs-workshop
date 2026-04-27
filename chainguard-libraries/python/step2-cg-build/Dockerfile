@@ -16,8 +16,7 @@ RUN rm -rf ~/.cache/pip
 RUN uv venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-ENV UV_INDEX_URL="https://libraries.cgr.dev/python-remediated/simple"
-ENV UV_EXTRA_INDEX_URL="https://libraries.cgr.dev/python/simple https://pypi.org/simple"
+ENV UV_INDEX="https://libraries.cgr.dev/python/simple https://pypi.org/simple"
 
 RUN --mount=type=secret,id=netrc,target=/root/.netrc \
     uv pip install --no-cache -r requirements.txt

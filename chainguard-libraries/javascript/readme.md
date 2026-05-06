@@ -74,16 +74,16 @@ export CGR_TOKEN=$(echo $CREDS_OUTPUT | jq -r ".token")
 **npm/pnpm:**
 ```bash
 cat > .npmrc <<EOF
-registry=https://libraries.cgr.dev/npm/
-//libraries.cgr.dev/npm/:_auth=$(echo -n "${CGR_USER}:${CGR_TOKEN}" | base64)
-//libraries.cgr.dev/npm/:always-auth=true
+registry=https://libraries.cgr.dev/javascript/
+//libraries.cgr.dev/javascript/:_auth=$(echo -n "${CGR_USER}:${CGR_TOKEN}" | base64)
+//libraries.cgr.dev/javascript/:always-auth=true
 EOF
 ```
 
 **Yarn:**
 ```bash
 cat > .yarnrc.yml <<EOF
-npmRegistryServer: "https://libraries.cgr.dev/npm/"
+npmRegistryServer: "https://libraries.cgr.dev/javascript/"
 npmAlwaysAuth: true
 npmAuthIdent: "${CGR_USER}:${CGR_TOKEN}"
 nodeLinker: node-modules
@@ -94,7 +94,7 @@ EOF
 ```bash
 cat > bunfig.toml <<EOF
 [install]
-registry = "https://libraries.cgr.dev/npm/"
+registry = "https://libraries.cgr.dev/javascript/"
 
 [install.scopes]
 "libraries.cgr.dev" = { token = "${CGR_TOKEN}", username = "${CGR_USER}" }

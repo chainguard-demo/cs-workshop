@@ -1,0 +1,8 @@
+# Base values for the ingress-nginx helm chart.
+# Layered with chainguard.yaml during the migration demo.
+
+controller:
+  service:
+    type: LoadBalancer
+  publishService:
+    enabled: true

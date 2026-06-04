@@ -1,0 +1,51 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: taskboard
+
+servers: 1
+agents: 2
+
+# Map host ports so ingress-nginx is reachable at http(s)://*.localhost.
+ports:
+  - port: 80:80
+    nodeFilters:
+      - loadbalancer
+  - port: 443:443
+    nodeFilters:
+      - loadbalancer
+
+# Local image registry, plugged into the cluster on both ends:
+#   • registries.create stands up a registry container on the cluster's
+#     Docker network with alias `registry.localhost` and publishes port 5000
+#     to the host. From the host, *.localhost resolves to 127.0.0.1 so
+#     `docker push registry.localhost:5000/...` hits the published port.
+#     From inside the cluster, the Docker network DNS resolves
+#     `registry.localhost` to the registry container's IP.
+#   • registries.config supplies a registries.yaml fragment that's merged
+#     into every node. We add an auth block for cgr.dev (rendered with a
+#     short-lived pull token by bootstrap.sh) so the cluster can pull
+#     private Chainguard images transparently.
+registries:
+  create:
+    name: registry.localhost
+    host: "0.0.0.0"
+    hostPort: "5000"
+  config: |
+    configs:
+      "cgr.dev":
+        auth:
+          username: "@@CGR_USER@@"
+          password: "@@CGR_PASS@@"
+
+options:
+  k3d:
+    wait: true
+    timeout: 120s
+  k3s:
+    # k3d ships Traefik by default; we install ingress-nginx in bootstrap.sh
+    # so the ingress controller itself can also be migrated to Chainguard.
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*

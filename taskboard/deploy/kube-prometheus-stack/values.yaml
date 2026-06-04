@@ -1,0 +1,54 @@
+# Slim kube-prometheus-stack values: Grafana + Prometheus + kube-state-metrics.
+# Alertmanager and node-exporter are disabled to keep the demo light.
+
+alertmanager:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+prometheus-node-exporter:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+
+grafana:
+  enabled: true
+  adminPassword: admin
+  defaultDashboardsTimezone: utc
+  service:
+    type: ClusterIP
+  # Auto-load the community Trivy Operator dashboard so CVE results visualize
+  # out of the box. ID 17813 from https://grafana.com/grafana/dashboards/17813
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      trivy-operator:
+        gnetId: 17813
+        revision: 1
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    # Tell Prometheus to scrape the ServiceMonitor we install with trivy-operator.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 24h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi

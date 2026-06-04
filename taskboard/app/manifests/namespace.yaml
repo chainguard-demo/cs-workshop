@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskboard
+  labels:
+    # Trivy Operator scans all namespaces by default; this label is informational.
+    app.kubernetes.io/part-of: taskboard

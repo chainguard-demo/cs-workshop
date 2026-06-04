@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: taskboard
+type: Opaque
+stringData:
+  POSTGRES_USER: taskboard
+  POSTGRES_PASSWORD: taskboard
+  POSTGRES_DB: taskboard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: taskboard
+data:
+  # Loaded by the postgres entrypoint on first start.
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS tasks (
+      "Id" SERIAL PRIMARY KEY,
+      "Title" VARCHAR(500) NOT NULL,
+      "Done" BOOLEAN NOT NULL DEFAULT FALSE,
+      "CreatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    INSERT INTO tasks ("Title", "Done")
+    SELECT v.title, v.done FROM (VALUES
+      ('Bootstrap the cluster', true),
+      ('Look at CVE counts in Grafana', false),
+      ('Migrate the frontend to Chainguard', false),
+      ('Migrate the backend to Chainguard', false),
+      ('Migrate the database to Chainguard', false),
+      ('Migrate ingress-nginx to Chainguard', false),
+      ('Migrate cert-manager to Chainguard', false),
+      ('Migrate trivy-operator to Chainguard', false),
+      ('Migrate kube-prometheus-stack to Chainguard', false),
+      ('Look at CVE counts again', false)
+    ) AS v(title, done)
+    WHERE NOT EXISTS (SELECT 1 FROM tasks);
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: taskboard
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: taskboard
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "taskboard", "-d", "taskboard"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

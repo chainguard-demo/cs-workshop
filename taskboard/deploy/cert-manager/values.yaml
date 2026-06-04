@@ -1,0 +1,5 @@
+# Base values for the jetstack/cert-manager helm chart.
+# Layered with chainguard.yaml during the migration demo.
+
+crds:
+  enabled: true

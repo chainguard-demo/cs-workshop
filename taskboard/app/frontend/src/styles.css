@@ -1,0 +1,127 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+  --bg: #0f1117;
+  --bg-elevated: #1a1d26;
+  --fg: #e6e8ee;
+  --fg-muted: #9099a8;
+  --border: #2a2f3a;
+  --accent: #6699ff;
+  --accent-hover: #4a82ff;
+  --done: #5a6170;
+  --error: #ff7c7c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: grid;
+  place-items: start center;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main {
+  width: min(640px, 92vw);
+  padding: 2rem 0;
+}
+
+h1 {
+  margin: 0 0 1rem;
+  color: var(--fg);
+}
+
+form {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+form input {
+  flex: 1;
+  padding: .5rem .75rem;
+  font-size: 1rem;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+form input::placeholder {
+  color: var(--fg-muted);
+}
+
+form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button {
+  padding: .5rem 1rem;
+  font-size: 1rem;
+  border: 0;
+  border-radius: 4px;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+li label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+li input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+li.done span {
+  text-decoration: line-through;
+  color: var(--done);
+}
+
+li button {
+  background: transparent;
+  color: var(--fg-muted);
+  padding: .25rem .5rem;
+}
+
+li button:hover {
+  background: transparent;
+  color: var(--error);
+}
+
+.empty {
+  color: var(--fg-muted);
+  margin-top: 1rem;
+}
+
+.error {
+  color: var(--error);
+  margin-top: 1rem;
+}

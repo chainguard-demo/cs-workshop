@@ -1,0 +1,51 @@
+# Trivy Operator scans every workload it discovers and writes results into
+# VulnerabilityReport CRDs. Metrics are exposed via a ServiceMonitor which
+# the kube-prometheus-stack Prometheus picks up.
+
+trivy:
+  ignoreUnfixed: false
+  severity: "CRITICAL,HIGH,MEDIUM,LOW"
+  # The chart default mirror (mirror.gcr.io/aquasec/trivy-db) has occasionally
+  # served corrupted blobs (BLOB_UNKNOWN), causing every scan to FATAL on init.
+  # Pull the DB straight from the canonical GitHub repo instead. Note the
+  # chart concatenates `${dbRegistry}/${dbRepository}` — keep them split.
+  dbRegistry: ghcr.io
+  dbRepository: aquasecurity/trivy-db
+  javaDbRegistry: ghcr.io
+  javaDbRepository: aquasecurity/trivy-java-db
+  # ClientServer mode: one long-running `trivy-server` pod owns the ~95MB
+  # vuln DB; scan jobs query it via API. With Standalone mode every scan
+  # pod re-downloads the DB which is slow and can rate-limit ghcr.
+  mode: ClientServer
+  # The k3d local registry serves plain HTTP. The map key is a friendly
+  # label (used in the ConfigMap key), the value is the actual registry
+  # host:port — colons in the host break ConfigMap validation if put in
+  # the map key directly.
+  nonSslRegistries:
+    k3dRegistry: "registry.localhost:5000"
+
+operator:
+  # Stand up a long-running trivy-server pod owned by the operator. ClientServer
+  # mode (set on `trivy.mode` above) makes every scan job query this server
+  # instead of re-downloading the DB.
+  builtInTrivyServer: true
+  # Keep finished scan jobs around very briefly. The operator's "active jobs"
+  # counter (used for the concurrent-limit gate) does not filter by job status,
+  # so completed-but-not-yet-GC'd jobs block new scans from being queued. With
+  # a 60s TTL they vanish before they can clog the counter.
+  scanJobTTL: 60s
+  # Headroom so a single failed/slow scan can't starve everything else.
+  scanJobsConcurrentLimit: 20
+  metricsVulnIdEnabled: true
+  # Scan every replicaset, not just the deployment's current revision. Without
+  # this, mid-rollout the operator decides "not current yet, try later" and
+  # requeues indefinitely. Costs us extra scans on transient ReplicaSets,
+  # which is acceptable for the demo.
+  vulnerabilityScannerScanOnlyCurrentRevisions: false
+
+serviceMonitor:
+  enabled: true
+
+# Allow scanning images from the in-cluster registry without TLS verification.
+nodeCollector:
+  enabled: true

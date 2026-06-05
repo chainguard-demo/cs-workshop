@@ -143,6 +143,17 @@ log "building all taskboard image iterations → registry.localhost:5000"
 source "${REPO_ROOT}/.images.env"
 export BACKEND_IMAGE FRONTEND_IMAGE
 
+# --- warm cgr.dev/postgres on cluster nodes ---------------------------------
+# Pre-pull the Chainguard postgres image on every node so the db demo's
+# `kubectl set image` swap is instant — no pull delay in front of the audience.
+log "pre-pulling cgr.dev/${ORG}/postgres:16 on cluster nodes"
+for node in $(k3d node list --no-headers | awk -v c="${CLUSTER_NAME}" '$3==c && $2 ~ /(server|agent)/ {print $1}'); do
+  log "  → ${node}"
+  docker exec "${node}" ctr -n k8s.io image pull \
+    --user "${CGR_USER}:${CGR_PASS}" \
+    "cgr.dev/${ORG}/postgres:16" >/dev/null
+done
+
 # --- deploy app --------------------------------------------------------------
 log "applying app manifests (BACKEND_IMAGE=${BACKEND_IMAGE})"
 kubectl apply -f "${REPO_ROOT}/app/manifests/namespace.yaml"

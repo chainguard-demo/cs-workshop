@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 RUN npm install && npm prune --omit=dev
 
-FROM cgr.dev/${ORG}/node:20
+FROM cgr.dev/${ORG}/node:20-slim
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server.js ./server.js

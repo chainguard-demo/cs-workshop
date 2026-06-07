@@ -22,21 +22,11 @@ ports:
 #     `docker push registry.localhost:5000/...` hits the published port.
 #     From inside the cluster, the Docker network DNS resolves
 #     `registry.localhost` to the registry container's IP.
-#   • registries.config supplies a registries.yaml fragment that's merged
-#     into every node. We add an auth block for cgr.dev (rendered with a
-#     short-lived pull token by bootstrap.sh) so the cluster can pull
-#     private Chainguard images transparently.
 registries:
   create:
     name: registry.localhost
     host: "0.0.0.0"
     hostPort: "5000"
-  config: |
-    configs:
-      "cgr.dev":
-        auth:
-          username: "@@CGR_USER@@"
-          password: "@@CGR_PASS@@"
 
 options:
   k3d:

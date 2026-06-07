@@ -71,16 +71,13 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16
+          image: postgres:16.12-alpine
           ports:
             - containerPort: 5432
               name: postgres
           envFrom:
             - secretRef:
                 name: postgres-credentials
-          env:
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

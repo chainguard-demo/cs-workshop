@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+
 # Bootstrap the Taskboard demo end-to-end:
 #   - k3d cluster (with local registry)
 #   - ingress-nginx, cert-manager, trivy-operator, kube-prometheus-stack
 #   - app images built from upstream Dockerfiles, pushed to local registry
+#   - Chainguard images for the demos pre-mirrored into the local registry
 #   - app + ingress + grafana ingress deployed
 #
 # Run a second time to re-apply manifests after editing.
@@ -13,8 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CLUSTER_NAME="taskboard"
 ORG="${ORG:-cs-ttt-demo.dev}"
-CLUSTER_TMPL="${REPO_ROOT}/cluster.yaml.tmpl"
-CLUSTER_RENDERED="${REPO_ROOT}/.cluster.yaml"
+CLUSTER_YAML="${REPO_ROOT}/cluster.yaml.tmpl"
+LOCAL_REGISTRY="registry.localhost:5000"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 
@@ -27,67 +29,18 @@ require() {
   done
 }
 
-require k3d kubectl helm docker chainctl jq
-
-# --- cgr.dev pull token ------------------------------------------------------
-# Mint a fresh 24h pull token in the demo org and render it into the k3d
-# cluster config. Every node ends up with /etc/rancher/k3s/registries.yaml
-# carrying auth for cgr.dev, so workloads can pull private Chainguard images
-# without ImagePullSecrets in every manifest.
-log "minting 24h cgr.dev pull token in ${ORG}"
-PULL_TOKEN_JSON=$(chainctl auth pull-token create \
-  --parent="${ORG}" \
-  --ttl=24h \
-  --name="e2e-example-bootstrap" \
-  --description="bootstrap.sh for chainguard-demo/e2e-example ($(date -u +%Y-%m-%dT%H:%M:%SZ))" \
-  --output=json)
-CGR_USER=$(jq -r '.identity_id' <<<"${PULL_TOKEN_JSON}")
-CGR_PASS=$(jq -r '.token' <<<"${PULL_TOKEN_JSON}")
-if [[ -z "${CGR_USER}" || -z "${CGR_PASS}" || "${CGR_USER}" == "null" ]]; then
-  echo "ERROR: failed to parse pull token from chainctl output" >&2
-  echo "${PULL_TOKEN_JSON}" >&2
-  exit 1
-fi
-
-log "rendering ${CLUSTER_RENDERED} from template"
-sed -e "s|@@CGR_USER@@|${CGR_USER}|" \
-    -e "s|@@CGR_PASS@@|${CGR_PASS}|" \
-    "${CLUSTER_TMPL}" > "${CLUSTER_RENDERED}"
+require k3d kubectl helm docker chainctl jq crane
 
 # --- cluster -----------------------------------------------------------------
 if k3d cluster list --no-headers 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER_NAME}"; then
-  log "k3d cluster '${CLUSTER_NAME}' already exists — refreshing cgr.dev creds on existing nodes"
-  # Write the rendered registries.yaml into each node and restart it so
-  # containerd picks up the new auth. The format inside the node matches
-  # the `registries.config` block we just rendered.
-  REGISTRY_AUTH=$(mktemp)
-  trap 'rm -f "${REGISTRY_AUTH}"' EXIT
-  cat > "${REGISTRY_AUTH}" <<EOF
-mirrors:
-  "registry.localhost:5000":
-    endpoint:
-      - http://registry.localhost:5000
-configs:
-  "cgr.dev":
-    auth:
-      username: "${CGR_USER}"
-      password: "${CGR_PASS}"
-EOF
-  for node in $(k3d node list --no-headers | awk -v c="${CLUSTER_NAME}" '$3==c && $2 ~ /(server|agent)/ {print $1}'); do
-    log "  → ${node}"
-    docker cp "${REGISTRY_AUTH}" "${node}:/etc/rancher/k3s/registries.yaml"
-    docker restart "${node}" >/dev/null
-  done
-  rm -f "${REGISTRY_AUTH}"
-  trap - EXIT
+  log "k3d cluster '${CLUSTER_NAME}' already exists — reusing"
 else
   log "creating k3d cluster '${CLUSTER_NAME}'"
-  k3d cluster create --config "${CLUSTER_RENDERED}"
+  k3d cluster create --config "${CLUSTER_YAML}"
 fi
 
 kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null
 
-# Wait for the API server to come back after potential node restarts above.
 log "waiting for cluster API to be ready"
 kubectl wait --for=condition=Ready nodes --all --timeout=2m >/dev/null
 
@@ -133,44 +86,25 @@ helm upgrade --install trivy-operator aqua/trivy-operator \
   --wait --timeout 5m
 
 # --- build + push app images ------------------------------------------------
-# Build the :0 baseline tag for both components and warm the docker cache for
-# every other Dockerfile iteration the demos walk through.
-log "building all taskboard image iterations → registry.localhost:5000"
+# Build every iteration of the per-component Dockerfiles and push them to the
+# local registry. The demos re-run `docker build --push` but pay only the
+# manifest cost since the layers are already there.
+log "building all taskboard image iterations → ${LOCAL_REGISTRY}"
 "${SCRIPT_DIR}/build-images.sh"
 
-# Pull resolved image URLs back out of the env file build-images.sh wrote.
 # shellcheck disable=SC1091
 source "${REPO_ROOT}/.images.env"
 export BACKEND_IMAGE FRONTEND_IMAGE
 
-# --- warm cgr.dev/postgres on cluster nodes ---------------------------------
-# Pre-pull the Chainguard postgres image on every node so the db demo's
-# `kubectl set image` swap is instant — no pull delay in front of the audience.
-log "pre-pulling cgr.dev/${ORG}/postgres:16 on cluster nodes"
-for node in $(k3d node list --no-headers | awk -v c="${CLUSTER_NAME}" '$3==c && $2 ~ /(server|agent)/ {print $1}'); do
-  log "  → ${node}"
-  docker exec "${node}" ctr -n k8s.io image pull \
-    --user "${CGR_USER}:${CGR_PASS}" \
-    "cgr.dev/${ORG}/postgres:16" >/dev/null
-done
+# --- mirror Chainguard postgres into the local registry ---------------------
+# The db demo runs `crane copy` against the same tag, but with the blobs
+# already pushed here the demo-time copy is just a manifest write.
+log "mirroring cgr.dev/${ORG}/postgres:16 → ${LOCAL_REGISTRY}/taskboard-postgres"
+crane copy --insecure "cgr.dev/${ORG}/postgres:16" "${LOCAL_REGISTRY}/taskboard-postgres:16" >/dev/null
 
 # --- deploy app --------------------------------------------------------------
 log "applying app manifests (BACKEND_IMAGE=${BACKEND_IMAGE})"
 kubectl apply -f "${REPO_ROOT}/app/manifests/namespace.yaml"
-
-# Containerd on each k3d node already has cgr.dev creds (we wrote
-# registries.yaml at cluster create time), but trivy-operator's scan jobs
-# need an ImagePullSecret on the workload — that's where it discovers
-# registry creds from. Create the docker-registry Secret in taskboard and
-# attach it to the default ServiceAccount so every workload picks it up.
-log "creating cgr.dev pull-token Secret in taskboard for trivy scan jobs"
-kubectl -n taskboard create secret docker-registry cgr-pull-token \
-  --docker-server=cgr.dev \
-  --docker-username="${CGR_USER}" \
-  --docker-password="${CGR_PASS}" \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n taskboard patch serviceaccount default --type=merge \
-  -p '{"imagePullSecrets":[{"name":"cgr-pull-token"}]}' >/dev/null
 
 kubectl apply -f "${REPO_ROOT}/app/db/manifests/postgres.yaml"
 # Substitute image refs into the workload manifests at apply time.
@@ -199,10 +133,5 @@ appear as VulnerabilityReport CRDs and metrics in the Grafana dashboard
 "Trivy Operator Dashboard".
 
   kubectl get vulnerabilityreports -A
-  kubectl get -n taskboard vulnerabilityreports.aquasecurity.github.io
-
-To switch the app to Chainguard images and watch the CVE count drop, run:
-
-  ./scripts/migrate-to-chainguard.sh
-
+  kubectl get -n taskboard vulnerabilityreports
 EOF

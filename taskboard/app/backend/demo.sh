@@ -22,10 +22,7 @@ clear
 banner "Here's the existing Dockerfile."
 pe "${BATCAT} 0.Dockerfile"
 
-banner "Which is running in the cluster now."
-pe "kubectl -n taskboard get pods -l app=taskboard-backend"
-
-banner "And serving the API as expected."
+banner "This is currently running and serving the API as expected."
 pe "curl -ksS https://taskboard.localhost/api/tasks | jq -c '.[] | {id, title, done}'"
 
 banner "Migrate to Chainguard — multi-stage, node-dev for build, node (non-dev) for runtime."
@@ -35,7 +32,10 @@ pe "kubectl -n taskboard set image deploy/taskboard-backend backend=${ATTEMPT1_I
 pe "kubectl -n taskboard rollout status deploy/taskboard-backend --timeout=2m"
 pe "kubectl -n taskboard get pods -l app=taskboard-backend"
 
-banner "Pod is up. But notice how long it takes to terminate one."
+banner "Let's see if the API is still working."
+pe "curl -ksS https://taskboard.localhost/api/tasks | jq -c '.[] | {id, title, done}'"
+
+banner "We always seem to catch the old pod in a Terminating state. How long does it take to terminate a pod?"
 pe "time kubectl -n taskboard delete --wait=true \$(kubectl -n taskboard get pods -l app=taskboard-backend --sort-by=.metadata.creationTimestamp -o name | tail -1)"
 
 banner "The entrypoint is 'node', which becomes PID 1 in the container but 'node' doesn't handle SIGTERM."

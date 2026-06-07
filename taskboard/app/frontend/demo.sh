@@ -26,10 +26,6 @@ clear
 banner "The existing Dockerfile."
 pe "${BATCAT} 0.Dockerfile"
 
-banner "Which is currently running in the cluster."
-pe "kubectl -n taskboard get pods -l app=taskboard-frontend"
-pe "curl -ksS -o /dev/null -w 'HTTP %{http_code}\\n' https://taskboard.localhost/"
-
 banner "Let's try to migrate it to Chainguard."
 pe "git diff --no-index -U10000 0.Dockerfile 1.Dockerfile"
 pe "docker build --push --build-arg ORG=${ORG} -f 1.Dockerfile -t ${ATTEMPT1_IMAGE} ."

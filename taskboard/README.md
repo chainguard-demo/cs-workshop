@@ -47,6 +47,7 @@ You need these installed on the host:
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [helm](https://helm.sh/docs/intro/install/) (v3)
 - [`chainctl`](https://docs.chainguard.dev/chainguard/chainctl-usage/)
+- [`crane`](https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md)
 - `jq`
 
 Your Chainguard organization must have these images enrolled (the demo

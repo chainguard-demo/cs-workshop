@@ -20,7 +20,7 @@ banner "Postgres is currently running an older upstream tag."
 pe "kubectl -n taskboard get statefulset postgres -o jsonpath='{.spec.template.spec.containers[0].image}{\"\\n\"}'"
 
 banner "Ask Chainguard which postgres-16 patch tags are currently supported (non-dev, MAJOR.MINOR only)."
-pe "chainctl image repo list --parent=${ORG} --repo=postgres -o json | jq -r '.items[].activeTags[]?' | grep -E '^16\.[0-9]+\$' | sort -V"
+pe "chainctl image repo list --parent=${ORG} --repo=postgres -o json | jq -r '.items[].activeTags[]?' | grep -E '^16.*' | sort -V"
 
 banner "Pick the newest patch. We could also just upgrade upstream (e.g. postgres:16.14-alpine) — same shape of operation. Here we go straight to Chainguard at the matching patch level."
 pe "CG_TAG=\$(chainctl image repo list --parent=${ORG} --repo=postgres -o json | jq -r '.items[].activeTags[]?' | grep -E '^16\.[0-9]+\$' | sort -V | tail -1)"

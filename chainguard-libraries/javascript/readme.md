@@ -59,7 +59,7 @@ docker stop js-lib-example && docker rm js-lib-example && rm -rf node_modules
 cd ../step2-cg
 
 CREDS_OUTPUT=$(chainctl auth pull-token \
-  --library-ecosystem=javascript \
+  --repository=javascript \
   --parent=$ORG_NAME \
   --name=js-workshop-token-$USER \
   --ttl=8760h \
@@ -132,9 +132,7 @@ docker build \
 docker run -d -p 3000:3000 --name js-lib-example js-lib-example:pnpm-cg
 curl http://localhost:3000
 
-docker cp js-lib-example:/app/node_modules .
-chainctl libraries verify --parent $ORG_NAME node_modules
-docker stop js-lib-example && docker rm js-lib-example && rm -rf node_modules
+docker stop js-lib-example && docker rm js-lib-example
 ```
 
 ### Build with Yarn

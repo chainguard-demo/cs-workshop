@@ -1,13 +1,13 @@
-FROM cgr.dev/trineta.net/python:3.13-dev AS package_builder
+FROM cgr.dev/chainguard/python:latest-dev AS package_builder
 
 # Note we are copying from the non-dev image here, this needs to match the final image base
-COPY --from=cgr.dev/trineta.net/python:3.13 / /base-chroot
+COPY --from=cgr.dev/chainguard/python:latest / /base-chroot
 USER root
 RUN apk add --no-commit-hooks --no-cache --root /base-chroot cmake curl uv 
 
 #do stuff
 
-FROM cgr.dev/trineta.net/python:latest
+FROM cgr.dev/chainguard/python:latest
 # Copy over the apks prep'ed at the end of the build stage (no apk-add in this image)
 COPY --from=package_builder /base-chroot /
 

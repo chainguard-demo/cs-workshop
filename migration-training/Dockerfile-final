@@ -15,6 +15,7 @@ RUN uv sync --no-install-project --no-dev
 COPY src /app/src
 
 FROM cgr.dev/chainguard/python:latest AS runtime
+ENV UV_COMPILE_BYTECODE=1
 ENV UV_LIBC=gnu
 ENV PATH=/nonroot/app/.venv/bin:$PATH
 USER nonroot

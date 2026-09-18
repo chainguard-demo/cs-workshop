@@ -1,4 +1,4 @@
-FROM cgr.dev/garrett.crosby/python:3.13-dev AS build
+FROM cgr.dev/chainguard/python:latest-dev AS build
 
 USER root
 
@@ -14,7 +14,7 @@ COPY pyproject.toml /app/
 RUN uv sync --no-install-project --no-dev
 COPY src /app/src
 
-FROM cgr.dev/garrett.crosby/python:3.13 AS runtime
+FROM cgr.dev/chainguard/python:latest AS runtime
 ENV UV_LIBC=gnu
 ENV PATH=/nonroot/app/.venv/bin:$PATH
 USER nonroot

@@ -1,13 +1,29 @@
-FROM cgr.dev/chainguard/python:latest-dev AS package_builder
+FROM cgr.dev/chainguard/python:latest-dev AS builder
+USER root
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_NO_CACHE=1
+
+WORKDIR /app
+COPY README.md /app/
+COPY pyproject.toml /app/
+RUN uv sync --no-install-project --no-dev
+COPY src /app/src
 
 # Note we are copying from the non-dev image here, this needs to match the final image base
 COPY --from=cgr.dev/chainguard/python:latest / /base-chroot
 USER root
-RUN apk add --no-commit-hooks --no-cache --root /base-chroot cmake curl uv 
+RUN apk add --no-commit-hooks --no-cache --root /base-chroot bash-binsh \
+    && apk add --no-cache --root /base-chroot uv  \
+    && apk del --no-commit-hooks --root /base-chroot bash-binsh
 
-#do stuff
-
-FROM cgr.dev/chainguard/python:latest
+FROM cgr.dev/chainguard/python:latest AS runtime
 # Copy over the apks prep'ed at the end of the build stage (no apk-add in this image)
-COPY --from=package_builder /base-chroot /
+ENV UV_COMPILE_BYTECODE=1
+COPY --from=builder /base-chroot /
 
+WORKDIR /app
+COPY --from=builder --chown=65532 /app .
+
+EXPOSE 8000
+ENTRYPOINT ["uv", "run", "python", "-m", "api_module.main"]

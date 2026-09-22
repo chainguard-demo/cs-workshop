@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard-private/nginx:mainline-full
+FROM cgr.dev/<ORGANIZATION>/nginx:mainline-full
 
 # Define the environment variable
 ENV NGINX_HOST=localhost

@@ -1,0 +1,7 @@
+work/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.netrc
+ECO-ticket-draft.md

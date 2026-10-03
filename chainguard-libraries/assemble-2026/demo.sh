@@ -99,7 +99,7 @@ pe "docker create --name ${IMAGE}-cg ${IMAGE}:cg"
 pe "docker cp ${IMAGE}-cg:/app/.venv ./venv"
 pe "docker rm ${IMAGE}-cg"
 pe "chainctl libraries verify venv"
-pe "diff -q .before.lock uv.lock && echo 'uv.lock: not one line changed'"
+pe "diff -q .before.lock uv.lock"
 pe "grep -B1 -A5 '^name = \"tabulate\"' uv.lock"
 wait
 rm -rf venv

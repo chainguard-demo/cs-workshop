@@ -56,6 +56,7 @@ build if you would rather demonstrate it.
 | `celery` | `5.2.1` | The one CVE. Remediated as `5.2.1+cgr.1`, reached by re-resolution. |
 | `pyjokes` | `0.8.3` | Withheld by the demo's Libraries policy. Upstream-only and dependency-free. Fixed by pinning **back** to `0.8.2`. |
 | `rich`, `python-dateutil` | `13.7.0`, `2.8.2` | Held a version behind so the closing "day two" step has something ordinary to bump. |
+| `tabulate`, `idna`, `pyyaml`, `werkzeug`, `flask`, `jinja2`, `requests`, `urllib3`, `pillow`, `pydantic` | ranges (`>=`, `~=`) | Deliberately *not* exact pins. Several have newer releases on PyPI, so step 4 shows `uv lock` leaving a satisfied lockfile alone even where the constraints would permit a bump. |
 | everything else | pinned | Pinned to the newest version Chainguard builds from source, so the migration is not muddied by unrelated CVEs. |
 
 ---
@@ -251,8 +252,14 @@ grep -B1 -A5 '^name = "tabulate"' uv.lock
 
 `uv lock` did **nothing at all** — not one line. Every entry already records
 `source = "https://pypi.org/simple"`, PyPI is still a configured index, and
-every pin is still satisfiable there, so the lockfile is already valid and uv
-has no reason to touch it. Adding an index does not move an existing lock.
+every requirement is still satisfiable there, so the lockfile is already valid
+and uv has no reason to touch it. Adding an index does not move an existing
+lock.
+
+That is not an artefact of pinning. Ten dependencies are ranges rather than
+exact pins, and several have newer releases on PyPI — `tabulate>=0.9.0` stays
+locked at `0.9.0` with a newer version published, which the `tabulate` grep
+shows directly. A lockfile that satisfies `pyproject.toml` is not re-resolved.
 `uv sync --frozen` then installs exactly what the lockfile says, from
 `files.pythonhosted.org`.
 
@@ -553,8 +560,11 @@ cd app && rm uv.lock && uv lock
 - **The step 7 lockfile diff is a wall of change, by design.** That is the one
   `uv lock` that re-resolves: dropping PyPI invalidates every recorded
   `source`, so `source`, `url`, `hash` and `upload-time` are rewritten on every
-  entry. Later steps re-resolve a single package and are not diffed, to keep
-  them readable. (`update-hashes` leaves `upload-time` alone, which the next
+  entry. Versions should not move — locked versions still act as preferences,
+  including for the ten range-pinned dependencies — so a version change in that
+  diff means Chainguard does not carry the locked build; worth a glance.
+  Later steps re-resolve a single package and are not diffed, to keep them
+  readable. (`update-hashes` leaves `upload-time` alone, which the next
   re-resolve then corrects everywhere — repro in `ECO-ticket-draft.md`.)
 - **`update-hashes --remediated` is not the path to `+cgr.N` builds.** It looks
   for the exact pinned version, and the remediated index publishes

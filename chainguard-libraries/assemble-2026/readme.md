@@ -226,14 +226,14 @@ exit.
 ```bash
 git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard.toml
 git diff --no-index -U10000 Dockerfile ../configs/Dockerfile.chainguard
+uv lock
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg .
 ```
 
 `pyproject.chainguard.toml` declares the remediated index first, then the
 standard index. It stops short of `default = true`, so **PyPI is still a
-fallback** — deliberately; step 7 turns on what that hides.
-`Dockerfile.chainguard` adds the netrc secret mount. Extract the venv and check
-coverage:
+configured index** — deliberately. `Dockerfile.chainguard` adds the netrc
+secret mount. Extract the venv and check coverage:
 
 ```bash
 docker create --name rb reportbot:cg
@@ -241,33 +241,47 @@ docker cp rb:/app/.venv ./venv && docker rm rb
 chainctl libraries verify venv
 ```
 
-**`Verification Coverage: 0.00%`.** `uv sync --frozen` honours the lockfile, and
-the lockfile still contains `files.pythonhosted.org` URLs. Clearing uv's cache
-does not change this — the URLs are absolute, so the index configuration is
-simply never consulted. Re-running the `tabulate` grep confirms it.
-
-### 5. Re-resolve the lockfile
+**`Verification Coverage: 0.00%`** — after re-locking. The lockfile explains
+why:
 
 ```bash
+diff -q .before.lock uv.lock    # identical
+grep -B1 -A5 '^name = "tabulate"' uv.lock
+```
+
+`uv lock` did **nothing at all** — not one line. Every entry already records
+`source = "https://pypi.org/simple"`, PyPI is still a configured index, and
+every pin is still satisfiable there, so the lockfile is already valid and uv
+has no reason to touch it. Adding an index does not move an existing lock.
+`uv sync --frozen` then installs exactly what the lockfile says, from
+`files.pythonhosted.org`.
+
+This is the step people get wrong: pointing uv at Chainguard changes nothing
+on its own.
+
+### 5. Close the fallback
+
+```bash
+git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard-default.toml
 uv lock
 ```
 
-`uv lock` re-derives `source`, `url` and `hash` for every entry from the
-configured indexes. Without `--upgrade` or `--upgrade-package` the locked
-versions act as preferences, so every pin survives untouched and only the
-provenance moves. Re-running the `tabulate` grep confirms it.
+One added line — `default = true` — makes the Chainguard index *the* default
+and drops PyPI entirely. Now every recorded `source` is an index that is no
+longer configured, so uv has to re-resolve the whole graph — and immediately
+hits the wall:
 
-One entry did not move:
-
-```bash
-grep -B3 'pypi.org/simple' uv.lock
-# pyjokes
+```
+× No solution found when resolving dependencies:
+╰─▶ Because pyjokes was not found in the package registry and your project
+    depends on pyjokes==0.8.3, we can conclude that your project's
+    requirements are unsatisfiable.
 ```
 
 ### 6. Meet the policy block
 
-That straggler is no accident. Chainguard withheld `0.8.3`, and because PyPI
-is still configured as a fallback, uv quietly took it from there instead:
+Chainguard withholds `0.8.3`, and with PyPI gone there is nowhere else to get
+it:
 
 ```bash
 chainctl libraries packages blocked --parent=$ORG_NAME --ecosystem=PYTHON --package pyjokes
@@ -304,27 +318,7 @@ curl -s --netrc-file $NETRC \
 `POLICY_ORG_BLOCKLIST` is *your* organisation's block list, not Chainguard's
 global malware feed, which reports `MALWARE_DETECTED`.
 
-### 7. Close the fallback
-
-```bash
-git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard-default.toml
-uv lock
-```
-
-One added line — `default = true` — makes the Chainguard index the only index.
-With nowhere else to get `0.8.3`, resolution stops dead:
-
-```
-× No solution found when resolving dependencies:
-╰─▶ Because pyjokes was not found in the package registry and your project
-    depends on pyjokes==0.8.3, we can conclude that your project's
-    requirements are unsatisfiable.
-```
-
-The block was in force the whole time; the PyPI fallback was hiding it. This
-is the step that makes the policy mean anything.
-
-### 8. Pin back to a version the policy allows
+### 7. Pin back to a version the policy allows
 
 The previous version serves normally, which is what makes the downgrade a
 viable fix:
@@ -338,6 +332,12 @@ curl -sL --netrc-file $NETRC \
 git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard-fixed.toml
 uv lock
 ```
+
+This is the `uv lock` that actually migrates the project. With PyPI gone and
+`0.8.3` off the pin, resolution finally succeeds, and because no recorded
+`source` is reachable any more it rewrites every entry — a wall of change in
+the diff. Nothing drifts: no `--upgrade` is involved, so the locked versions
+still act as preferences and only the provenance moves.
 
 Nothing points at PyPI any more:
 
@@ -353,7 +353,7 @@ The `source` line records the configured index; the artefact URLs show the
 tier that actually served it. `pyjokes` came over Chainguard's **upstream**
 tier, byte-identical to PyPI's.
 
-### 9. Build the migrated project
+### 8. Build the migrated project
 
 ```bash
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg-migrated .
@@ -364,7 +364,7 @@ docker run --rm reportbot:cg-migrated
 **`Verification Coverage: 90.24%`** — see [The coverage
 number](#the-coverage-number) for what the missing 10% is.
 
-### 10. Re-resolve for remediations
+### 9. Re-resolve for remediations
 
 ```bash
 grype reportbot:cg-migrated --only-fixed -q | head -8
@@ -383,7 +383,7 @@ uv lock --upgrade-package celery
 sorts *above* plain `5.2.1`, so the pin in `pyproject.toml` never changes —
 which is the whole trick.
 
-### 11. Result
+### 10. Result
 
 ```bash
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg-remediated .
@@ -405,7 +405,7 @@ jq '.packages[0] | {versionInfo, supplier, sourceInfo}' \
  0001-bump-local-version-to-cgr.1.patch, 0002-CVE-2021-23727-primary-fix.patch."
 ```
 
-### 12. Day two
+### 11. Day two
 
 ```bash
 uv add --no-sync 'rich===15.0.0' --upgrade-package rich
@@ -508,16 +508,16 @@ cd app && rm uv.lock && uv lock
 - **`default = true` is load-bearing.** The remediated index forces
   `index-strategy = "unsafe-best-match"` — `first-index` stops at the
   remediated index, which does not carry most of these packages. Given that
-  strategy, omitting `default = true` leaves PyPI in the candidate set, and a
-  blocked version resolves straight from PyPI with nothing to indicate it. Both
-  configs in `configs/` set it.
+  strategy, omitting `default = true` leaves PyPI in the candidate set, so on
+  any fresh resolve a blocked version comes straight from PyPI with nothing to
+  indicate it. `pyproject.chainguard.toml` omits it deliberately, for step 4;
+  the other two configs set it.
 - **`--frozen`, not `--locked`.** Astral's reference Dockerfile uses
   `uv sync --locked`, which re-resolves in memory and fails if the lockfile is
-  not current. That is the better production default, and worth saying aloud —
-  but it breaks step 4 here: the re-resolve runs against Chainguard, where
-  `pyjokes==0.8.3` is withheld, so the build dies on `no version of
-  pyjokes==0.8.3` before the 0.00% coverage reading. `--frozen` installs the
-  lockfile verbatim, which is what makes that step observable.
+  not current. That is the better production default, and worth saying aloud.
+  `--frozen` installs the lockfile verbatim instead, keeping the build
+  independent of resolver state — which is what makes the 0.00% reading at
+  step 4 observable regardless of what the configured indexes resolve to.
 - **Run the install in Linux.** Chainguard does not publish macOS wheels, so
   compiled packages (`pillow`, `pydantic-core`, `markupsafe`) fall back to PyPI
   on a Mac and coverage drops. The demo builds in a container for this reason.
@@ -550,11 +550,12 @@ cd app && rm uv.lock && uv lock
   matches only `source` registry lines. `uv lock` routes all of them through
   `libraries.cgr.dev` in one step, which is why the demo uses it. See
   `ECO-ticket-draft.md`.
-- **The step 5 lockfile diff is a wall of change, by design.** Re-resolving
-  against a different index rewrites `source`, `url`, `hash` and `upload-time`
-  on every entry. Later steps re-resolve a single package and are not diffed,
-  to keep them readable. (`update-hashes` leaves `upload-time` alone, which the
-  next re-resolve then corrects everywhere — repro in `ECO-ticket-draft.md`.)
+- **The step 7 lockfile diff is a wall of change, by design.** That is the one
+  `uv lock` that re-resolves: dropping PyPI invalidates every recorded
+  `source`, so `source`, `url`, `hash` and `upload-time` are rewritten on every
+  entry. Later steps re-resolve a single package and are not diffed, to keep
+  them readable. (`update-hashes` leaves `upload-time` alone, which the next
+  re-resolve then corrects everywhere — repro in `ECO-ticket-draft.md`.)
 - **`update-hashes --remediated` is not the path to `+cgr.N` builds.** It looks
   for the exact pinned version, and the remediated index publishes
   `5.2.1+cgr.1`, not `5.2.1`. Re-resolution is what reaches remediated builds.

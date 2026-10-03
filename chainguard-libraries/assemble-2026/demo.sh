@@ -144,7 +144,7 @@ wait
 # Surgical re-resolve #2: the remediations
 ###############################################################################
 banner "Let's check the CVEs."
-pe "grype ${IMAGE}:cg-migrated --only-fixed -q | head -8"
+pe "grype ${IMAGE}:cg-migrated --only-fixed"
 pe "chainctl libraries packages versions pypi:celery | grep remediated"
 lock_snapshot
 pe "uv lock --upgrade-package celery"
@@ -158,7 +158,7 @@ banner "Build it and run it"
 
 pe "${DOCKER_BUILD} --secret id=netrc,src=\${NETRC} -t ${IMAGE}:cg-remediated ."
 pe "docker run --rm ${IMAGE}:cg-remediated"
-pe "grype ${IMAGE}:cg-remediated --only-fixed -q | head -8"
+pe "grype ${IMAGE}:cg-remediated --only-fixed"
 wait
 
 ###############################################################################

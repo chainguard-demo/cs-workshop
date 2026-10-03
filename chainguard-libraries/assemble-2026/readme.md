@@ -47,7 +47,7 @@ not change its CVE posture; only the remediated builds do.
 
 `demo.sh` scans at the second and third points. The baseline and the migrated
 image produce byte-identical grype output, so the first row is stated rather
-than shown — add `grype reportbot:pypi --only-fixed -q` after the baseline
+than shown — add `grype reportbot:pypi --only-fixed` after the baseline
 build if you would rather demonstrate it.
 
 ### Why these dependencies
@@ -365,7 +365,7 @@ number](#the-coverage-number) for what the missing 10% is.
 ### 9. Re-resolve for remediations
 
 ```bash
-grype reportbot:cg-migrated --only-fixed -q | head -8
+grype reportbot:cg-migrated --only-fixed
 ```
 
 Still one finding, unchanged from the baseline. `+cgr.N` builds only arrive
@@ -386,7 +386,7 @@ which is the whole trick.
 ```bash
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg-remediated .
 docker run --rm reportbot:cg-remediated
-grype reportbot:cg-remediated --only-fixed -q | head -8
+grype reportbot:cg-remediated --only-fixed
 # No vulnerabilities found
 ```
 

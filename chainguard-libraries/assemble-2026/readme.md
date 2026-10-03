@@ -93,9 +93,9 @@ Two rules govern whether a block actually bites, and both matter:
    list. The blocked version must be one served from `/python-upstream/simple/…`.
 
 `pyjokes` satisfies both: Chainguard has never built it, so every version comes
-via upstream fallback. It is also pure Python with no dependencies, so it adds
-nothing to the graph, and it is the only package `update-hashes` cannot
-rewrite — which makes the straggler and the block the same package.
+via its upstream tier. It is also pure Python with no dependencies, so it adds
+nothing to the graph, and the block is what strands it on PyPI — which makes
+the straggler and the blocked package the same package.
 
 ```bash
 chainctl libraries policy create --name=assemble-demo --parent="$ORG_NAME" \
@@ -154,7 +154,8 @@ app/                                  pristine baseline, never mutated
   Dockerfile                          uv sync --frozen, no credentials
   src/reportbot/
 configs/
-  pyproject.chainguard.toml           + Chainguard indexes, no PyPI fallback
+  pyproject.chainguard.toml           + Chainguard indexes, PyPI still a fallback
+  pyproject.chainguard-default.toml   + default = true, closing the fallback
   pyproject.chainguard-fixed.toml     pyjokes pinned back to 0.8.2
   Dockerfile.chainguard               + the netrc secret mount
 work/                                 scratch copy, created and removed by demo.sh
@@ -229,7 +230,8 @@ docker build --secret id=netrc,src=$NETRC -t reportbot:cg .
 ```
 
 `pyproject.chainguard.toml` declares the remediated index first, then the
-standard index as `default = true`, and **no PyPI fallback**.
+standard index. It stops short of `default = true`, so **PyPI is still a
+fallback** — deliberately; step 7 turns on what that hides.
 `Dockerfile.chainguard` adds the netrc secret mount. Extract the venv and check
 coverage:
 
@@ -244,18 +246,18 @@ the lockfile still contains `files.pythonhosted.org` URLs. Clearing uv's cache
 does not change this — the URLs are absolute, so the index configuration is
 simply never consulted. Re-running the `tabulate` grep confirms it.
 
-### 5. Rewrite the lockfile
+### 5. Re-resolve the lockfile
 
 ```bash
-chainctl libraries update-hashes uv.lock | tail -14
+uv lock
 ```
 
-```
-Packages: 41 total, 39 updated, 1 already current, 1 not in Chainguard
-```
+`uv lock` re-derives `source`, `url` and `hash` for every entry from the
+configured indexes. Without `--upgrade` or `--upgrade-package` the locked
+versions act as preferences, so every pin survives untouched and only the
+provenance moves. Re-running the `tabulate` grep confirms it.
 
-Every pinned version is preserved; only URLs and integrity hashes change. The
-straggler:
+One entry did not move:
 
 ```bash
 grep -B3 'pypi.org/simple' uv.lock
@@ -263,6 +265,9 @@ grep -B3 'pypi.org/simple' uv.lock
 ```
 
 ### 6. Meet the policy block
+
+That straggler is no accident. Chainguard withheld `0.8.3`, and because PyPI
+is still configured as a fallback, uv quietly took it from there instead:
 
 ```bash
 chainctl libraries packages blocked --parent=$ORG_NAME --ecosystem=PYTHON --package pyjokes
@@ -297,22 +302,43 @@ curl -s --netrc-file $NETRC \
 ```
 
 `POLICY_ORG_BLOCKLIST` is *your* organisation's block list, not Chainguard's
-global malware feed, which reports `MALWARE_DETECTED`. The previous version
-serves normally, which is what makes the downgrade a viable fix:
+global malware feed, which reports `MALWARE_DETECTED`.
+
+### 7. Close the fallback
+
+```bash
+git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard-default.toml
+uv lock
+```
+
+One added line — `default = true` — makes the Chainguard index the only index.
+With nowhere else to get `0.8.3`, resolution stops dead:
+
+```
+× No solution found when resolving dependencies:
+╰─▶ Because pyjokes was not found in the package registry and your project
+    depends on pyjokes==0.8.3, we can conclude that your project's
+    requirements are unsatisfiable.
+```
+
+The block was in force the whole time; the PyPI fallback was hiding it. This
+is the step that makes the policy mean anything.
+
+### 8. Pin back to a version the policy allows
+
+The previous version serves normally, which is what makes the downgrade a
+viable fix:
 
 ```bash
 curl -sL --netrc-file $NETRC \
   https://libraries.cgr.dev/python-upstream/simple/pyjokes/0.8.2/pyjokes-0.8.2-py3-none-any.whl | tar -tv
 ```
 
-### 7. Pin back to a version the policy allows
-
 ```bash
 git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard-fixed.toml
-uv lock --upgrade-package pyjokes
+uv lock
 ```
 
-`--upgrade-package` works in both directions; here it moves `0.8.3 → 0.8.2`.
 Nothing points at PyPI any more:
 
 ```bash
@@ -324,10 +350,10 @@ grep -A6 '^name = "pyjokes"' uv.lock | grep -oE 'https://[^"]+'
 ```
 
 The `source` line records the configured index; the artefact URLs show the
-tier that actually served it. `pyjokes` came over the **upstream fallback**
-path, byte-identical to PyPI's.
+tier that actually served it. `pyjokes` came over Chainguard's **upstream**
+tier, byte-identical to PyPI's.
 
-### 8. Build the migrated project
+### 9. Build the migrated project
 
 ```bash
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg-migrated .
@@ -338,7 +364,7 @@ docker run --rm reportbot:cg-migrated
 **`Verification Coverage: 90.24%`** — see [The coverage
 number](#the-coverage-number) for what the missing 10% is.
 
-### 9. Re-resolve for remediations
+### 10. Re-resolve for remediations
 
 ```bash
 grype reportbot:cg-migrated --only-fixed -q | head -8
@@ -357,7 +383,7 @@ uv lock --upgrade-package celery
 sorts *above* plain `5.2.1`, so the pin in `pyproject.toml` never changes —
 which is the whole trick.
 
-### 10. Result
+### 11. Result
 
 ```bash
 docker build --secret id=netrc,src=$NETRC -t reportbot:cg-remediated .
@@ -379,7 +405,7 @@ jq '.packages[0] | {versionInfo, supplier, sourceInfo}' \
  0001-bump-local-version-to-cgr.1.patch, 0002-CVE-2021-23727-primary-fix.patch."
 ```
 
-### 11. Day two
+### 12. Day two
 
 ```bash
 uv add --no-sync 'rich===15.0.0' --upgrade-package rich
@@ -388,7 +414,7 @@ git diff --no-index .before.lock uv.lock
 ```
 
 Both resolve straight to `libraries.cgr.dev/python/simple` with no further
-configuration and no `update-hashes`. Eight changed lines per package, no new
+configuration. Eight changed lines per package, no new
 transitive dependencies — an ordinary, reviewable version bump. `--no-sync`
 keeps it lockfile-only; the project is only ever installed inside the image.
 
@@ -514,22 +540,21 @@ cd app && rm uv.lock && uv lock
   minimal blast radius. Package names are written out explicitly in `demo.sh`
   rather than derived at runtime, so what you see on screen is what runs — but
   they need re-checking if the dependency set changes.
-- **`update-hashes` only rewrites what Chainguard rebuilt.** A version served
-  by the upstream proxy is byte-identical to PyPI's, so there is no different
-  hash to write and chainctl reports it as "not in Chainguard". Note that
-  `grep -B3 'pypi.org/simple'` finds only one package, because it matches
-  `source` registry lines — **91 `files.pythonhosted.org` wheel URLs** remain
-  after `update-hashes`, spread across ten packages (`charset-normalizer` 37,
-  `markupsafe` 20, `pydantic-core` 11, `pillow` 10, `pyyaml` 7, and a few
-  others). The subsequent `grep -c 'pypi.org\|pythonhosted'` → `0` is what
-  proves they are gone; re-resolution is what routes them through
-  `libraries.cgr.dev`. See `ECO-ticket-draft.md`.
-- **`update-hashes` leaves PyPI's `upload-time` in place.** The next re-resolve
-  of *any* package corrects it on *every* entry, so the first lockfile diff
-  after a migration is dominated by timestamp churn. It is cosmetic — it never
-  fails a build, and it does not prevent `--locked` from passing — but it makes
-  that one diff hard to review. `demo.sh` therefore does not diff the lockfile
-  after the `pyjokes` re-resolve. Minimal repro in `ECO-ticket-draft.md`.
+- **Re-resolution, not `update-hashes`, is what moves the lockfile.**
+  `update-hashes` only rewrites what Chainguard rebuilt: a version served by
+  the upstream proxy is byte-identical to PyPI's, so there is no different hash
+  to write and chainctl reports it as "not in Chainguard". It also leaves
+  **91 `files.pythonhosted.org` wheel URLs** behind across ten packages
+  (`charset-normalizer` 37, `markupsafe` 20, `pydantic-core` 11, `pillow` 10,
+  `pyyaml` 7, and others) — invisible to `grep -B3 'pypi.org/simple'`, which
+  matches only `source` registry lines. `uv lock` routes all of them through
+  `libraries.cgr.dev` in one step, which is why the demo uses it. See
+  `ECO-ticket-draft.md`.
+- **The step 5 lockfile diff is a wall of change, by design.** Re-resolving
+  against a different index rewrites `source`, `url`, `hash` and `upload-time`
+  on every entry. Later steps re-resolve a single package and are not diffed,
+  to keep them readable. (`update-hashes` leaves `upload-time` alone, which the
+  next re-resolve then corrects everywhere — repro in `ECO-ticket-draft.md`.)
 - **`update-hashes --remediated` is not the path to `+cgr.N` builds.** It looks
   for the exact pinned version, and the remediated index publishes
   `5.2.1+cgr.1`, not `5.2.1`. Re-resolution is what reaches remediated builds.

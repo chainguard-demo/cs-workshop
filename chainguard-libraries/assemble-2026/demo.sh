@@ -23,7 +23,9 @@ ORG_NAME="${ORG_NAME:-rob.best}"
 # The blocked package. Blocked by the 'assemble-demo' Libraries policy in
 # ${ORG_NAME} - see readme.md for the one-time setup. It must be a version
 # served by upstream fallback: policy blocks do not apply to Chainguard-built
-# artefacts.
+# artefacts. pyproject.chainguard.toml omits default = true so PyPI keeps
+# serving it anyway; that bypass is the reveal, so leave those configs
+# uncommented - swap_file puts them on screen as a diff.
 BLOCKED_PKG="pyjokes"
 BLOCKED_VER="0.8.3"   # the newest release - blocked, as novel malware would be
 FIXED_VER="0.8.2"     # the known-good release we pin back to
@@ -97,22 +99,39 @@ wait
 rm -rf venv
 
 ###############################################################################
-# Fix the lockfile
+# Re-resolve the lockfile
 ###############################################################################
-banner "Rewrite the lockfile with chainctl"
+banner "Re-resolve the lockfile against Chainguard"
 
 lock_snapshot
-pe "chainctl libraries update-hashes uv.lock | tail -14"
-pe "grep -B3 'pypi.org/simple' uv.lock"
+pe "uv lock"
+pe "grep -B1 -A5 '^name = \"tabulate\"' uv.lock"
 lock_diff
+pe "grep -B3 'pypi.org/simple' uv.lock"
 pe "chainctl libraries packages blocked --parent=\${ORG_NAME} --ecosystem=PYTHON --package ${BLOCKED_PKG} | grep '${BLOCKED_VER}\\|REASON'"
 pe "chainctl libraries policy describe ${POLICY} --parent=\${ORG_NAME}"
 pe "curl -s --netrc-file \${NETRC} \
   https://libraries.cgr.dev/python-upstream/simple/${BLOCKED_PKG}/${BLOCKED_VER}/${BLOCKED_PKG}-${BLOCKED_VER}-py3-none-any.whl | jq ."
+wait
+
+###############################################################################
+# Close the fallback
+###############################################################################
+banner "Make Chainguard the only index"
+
+swap_file pyproject.toml pyproject.chainguard-default.toml
+pe "uv lock"
+wait
+
+###############################################################################
+# Resolve the block
+###############################################################################
+banner "Pin back to a version Chainguard will serve"
+
 pe "curl -sL --netrc-file \${NETRC} \
   https://libraries.cgr.dev/python-upstream/simple/${BLOCKED_PKG}/${FIXED_VER}/${BLOCKED_PKG}-${FIXED_VER}-py3-none-any.whl | tar -tv"
 swap_file pyproject.toml pyproject.chainguard-fixed.toml
-pe "uv lock --upgrade-package ${BLOCKED_PKG}"
+pe "uv lock"
 pe "grep -c 'pypi.org\|pythonhosted' uv.lock"
 pe "grep -A6 '^name = \"${BLOCKED_PKG}\"' uv.lock | grep -oE 'https://[^\"]+'"
 wait

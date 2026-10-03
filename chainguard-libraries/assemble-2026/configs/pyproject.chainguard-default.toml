@@ -34,6 +34,7 @@ authenticate = "always"
 [[tool.uv.index]]
 name = "cgr-python"
 url = "https://libraries.cgr.dev/python/simple"
+default = true
 authenticate = "always"
 
 [tool.uv]

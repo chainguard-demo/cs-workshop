@@ -6,8 +6,9 @@ A `uv`-managed Python service with 40 locked dependencies from PyPI is moved
 onto Chainguard Libraries. Three things happen on the way, and each one is the
 point:
 
-1. Configuring the index changes nothing, because `uv.lock` pins absolute
-   URLs. The build goes green at **0.00% Chainguard coverage**.
+1. Configuring the index changes nothing. `uv lock` leaves a lockfile that
+   already satisfies `pyproject.toml` **completely untouched** — not one line —
+   even where the requirements are ranges with newer releases published.
 2. Once the graph is routed through Chainguard, one dependency stops resolving
    — the newest release of `pyjokes` is withheld by an organisation policy, the
    way a novel malware finding would arrive. The fix is a **downgrade**.
@@ -228,40 +229,30 @@ exit.
 git diff --no-index -U10000 pyproject.toml ../configs/pyproject.chainguard.toml
 git diff --no-index -U10000 Dockerfile ../configs/Dockerfile.chainguard
 uv lock
-docker build --secret id=netrc,src=$NETRC -t reportbot:cg .
+diff -q .before.lock uv.lock
+grep -B1 -A5 '^name = "tabulate"' uv.lock
 ```
 
 `pyproject.chainguard.toml` declares the remediated index first, then the
 standard index. It stops short of `default = true`, so **PyPI is still a
 configured index** — deliberately. `Dockerfile.chainguard` adds the netrc
-secret mount. Extract the venv and check coverage:
+secret mount.
 
-```bash
-docker create --name rb reportbot:cg
-docker cp rb:/app/.venv ./venv && docker rm rb
-chainctl libraries verify venv
-```
-
-**`Verification Coverage: 0.00%`** — after re-locking. The lockfile explains
-why:
-
-```bash
-diff -q .before.lock uv.lock    # identical
-grep -B1 -A5 '^name = "tabulate"' uv.lock
-```
-
-`uv lock` did **nothing at all** — not one line. Every entry already records
-`source = "https://pypi.org/simple"`, PyPI is still a configured index, and
-every requirement is still satisfiable there, so the lockfile is already valid
-and uv has no reason to touch it. Adding an index does not move an existing
-lock.
+The `diff` prints **nothing**. `uv lock` did not change one line: every entry
+already records `source = "https://pypi.org/simple"`, PyPI is still a
+configured index, and every requirement is still satisfiable there, so the
+lockfile is already valid and uv has no reason to touch it. Adding an index
+does not move an existing lock.
 
 That is not an artefact of pinning. Ten dependencies are ranges rather than
 exact pins, and several have newer releases on PyPI — `tabulate>=0.9.0` stays
 locked at `0.9.0` with a newer version published, which the `tabulate` grep
 shows directly. A lockfile that satisfies `pyproject.toml` is not re-resolved.
-`uv sync --frozen` then installs exactly what the lockfile says, from
-`files.pythonhosted.org`.
+
+Building here would be a waste: `uv sync --frozen` would install exactly what
+the lockfile says, from `files.pythonhosted.org`, and
+`chainctl libraries verify` would read **0.00%**. The lockfile has to be fixed
+first, which is the rest of the walkthrough.
 
 This is the step people get wrong: pointing uv at Chainguard changes nothing
 on its own.
@@ -522,9 +513,9 @@ cd app && rm uv.lock && uv lock
 - **`--frozen`, not `--locked`.** Astral's reference Dockerfile uses
   `uv sync --locked`, which re-resolves in memory and fails if the lockfile is
   not current. That is the better production default, and worth saying aloud.
-  `--frozen` installs the lockfile verbatim instead, keeping the build
-  independent of resolver state — which is what makes the 0.00% reading at
-  step 4 observable regardless of what the configured indexes resolve to.
+  `--frozen` installs the lockfile verbatim instead, so what lands in the image
+  is exactly the lockfile the audience just watched change, with no second
+  resolution to explain.
 - **Run the install in Linux.** Chainguard does not publish macOS wheels, so
   compiled packages (`pillow`, `pydantic-core`, `markupsafe`) fall back to PyPI
   on a Mac and coverage drops. The demo builds in a container for this reason.
@@ -537,7 +528,8 @@ cd app && rm uv.lock && uv lock
   Docker's, and is irrelevant on a layer-cache hit. On a miss it guarantees a
   real download from the configured index. A BuildKit cache mount for
   `~/.cache/uv` would speed up cold builds but could serve wheels fetched
-  before the index was switched — precisely the trap step 4 exposes.
+  before the index was switched, quietly undoing the migration inside the
+  image.
 - **`--no-install-project` matters.** Building `reportbot` itself would resolve
   an unlocked build backend (`hatchling`, `packaging`) against the Chainguard
   index and fail on a hash mismatch. The Dockerfile installs dependencies only

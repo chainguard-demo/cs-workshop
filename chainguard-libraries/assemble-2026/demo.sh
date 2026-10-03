@@ -94,15 +94,9 @@ swap_file pyproject.toml pyproject.chainguard.toml
 swap_file Dockerfile Dockerfile.chainguard
 lock_snapshot
 pe "uv lock"
-pe "${DOCKER_BUILD} --secret id=netrc,src=\${NETRC} -t ${IMAGE}:cg ."
-pe "docker create --name ${IMAGE}-cg ${IMAGE}:cg"
-pe "docker cp ${IMAGE}-cg:/app/.venv ./venv"
-pe "docker rm ${IMAGE}-cg"
-pe "chainctl libraries verify venv"
 pe "diff -q .before.lock uv.lock"
 pe "grep -B1 -A5 '^name = \"tabulate\"' uv.lock"
 wait
-rm -rf venv
 
 ###############################################################################
 # Close the fallback

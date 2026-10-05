@@ -524,12 +524,24 @@ cd app && rm uv.lock && uv lock
   exactly those two. Every step changes one of them, so each rebuild is real;
   re-running the whole demo is much faster. `DEMO_NO_CACHE=1 ./demo.sh` forces
   cold builds.
-- **`uv sync --no-cache` stays, though.** That disables *uv's* cache, not
-  Docker's, and is irrelevant on a layer-cache hit. On a miss it guarantees a
-  real download from the configured index. A BuildKit cache mount for
-  `~/.cache/uv` would speed up cold builds but could serve wheels fetched
-  before the index was switched, quietly undoing the migration inside the
-  image.
+- **`uv sync --no-cache` is belt-and-braces, not load-bearing.** It disables
+  *uv's* cache, not Docker's, and is irrelevant on a layer-cache hit. A
+  BuildKit cache mount for `~/.cache/uv` would speed cold builds up and is
+  safe: a warm cache does **not** mask a completed migration, because the
+  changed URL and hash force a refetch. Verified by warming a cache from one
+  index, re-locking onto another serving the same version with a different
+  hash, and re-syncing — the migrated artefact won every time, warm or cold.
+- **The lockfile's URLs are absolute, and they win.** `uv sync --frozen`
+  fetches them directly; the configured index is never consulted at install
+  time. A lock full of `files.pythonhosted.org` URLs installs from PyPI even
+  with PyPI removed as an index entirely — which is why step 4 changes
+  nothing, and why no amount of cache-clearing would change it either.
+- **The cache that does bite is the index listing.** uv caches the simple-index
+  response at `uv lock` time, so a version blocked *after* that listing was
+  cached stays resolvable — a fresh project with no lockfile will still pick
+  it. `uv lock --refresh` is what makes a newly-added block visible. Not
+  demonstrated in the demo; the stale window depends on the cache headers
+  `libraries.cgr.dev` sends.
 - **`--no-install-project` matters.** Building `reportbot` itself would resolve
   an unlocked build backend (`hatchling`, `packaging`) against the Chainguard
   index and fail on a hash mismatch. The Dockerfile installs dependencies only

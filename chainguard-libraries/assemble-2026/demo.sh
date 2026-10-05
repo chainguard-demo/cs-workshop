@@ -81,6 +81,7 @@ pe "cat Dockerfile"
 pe "${DOCKER_BUILD} -t ${IMAGE}:pypi ."
 pe "docker run --rm ${IMAGE}:pypi"
 wait
+clear
 
 ###############################################################################
 # Initial migration
@@ -97,11 +98,12 @@ pe "uv lock"
 pe "diff -q .before.lock uv.lock"
 pe "grep -B1 -A5 '^name = \"tabulate\"' uv.lock"
 wait
+clear
 
 ###############################################################################
 # Close the fallback
 ###############################################################################
-banner "Make Chainguard the only index"
+banner "We forgot an important piece of configuration"
 
 swap_file pyproject.toml pyproject.chainguard-default.toml
 pe "uv lock"
@@ -110,11 +112,12 @@ pe "chainctl libraries policy describe ${POLICY} --parent=\${ORG_NAME}"
 pe "curl -s --netrc-file \${NETRC} \
   https://libraries.cgr.dev/python-upstream/simple/${BLOCKED_PKG}/${BLOCKED_VER}/${BLOCKED_PKG}-${BLOCKED_VER}-py3-none-any.whl | jq ."
 wait
+clear
 
 ###############################################################################
 # Resolve the block
 ###############################################################################
-banner "Pin back to a version Chainguard will serve"
+banner "Pin to a version Chainguard will serve"
 
 pe "curl -sL --netrc-file \${NETRC} \
   https://libraries.cgr.dev/python-upstream/simple/${BLOCKED_PKG}/${FIXED_VER}/${BLOCKED_PKG}-${FIXED_VER}-py3-none-any.whl | tar -tv"
@@ -125,11 +128,12 @@ lock_diff
 pe "grep -c 'pypi.org\|pythonhosted' uv.lock"
 pe "grep -A6 '^name = \"${BLOCKED_PKG}\"' uv.lock | grep -oE 'https://[^\"]+'"
 wait
+clear
 
 ###############################################################################
 # Build the migrated project
 ###############################################################################
-banner "Now build it"
+banner "Build it"
 
 pe "${DOCKER_BUILD} --secret id=netrc,src=\${NETRC} -t ${IMAGE}:cg-migrated ."
 pe "docker create --name ${IMAGE}-cgm ${IMAGE}:cg-migrated"
@@ -139,27 +143,22 @@ pe "chainctl libraries verify venv"
 rm -rf venv
 pe "docker run --rm ${IMAGE}:cg-migrated"
 wait
+clear
 
 ###############################################################################
 # Surgical re-resolve #2: the remediations
 ###############################################################################
-banner "Let's check the CVEs."
+banner "What about vulnerabilities?"
 pe "grype ${IMAGE}:cg-migrated --only-fixed"
 pe "chainctl libraries packages versions pypi:celery | grep remediated"
 lock_snapshot
 pe "uv lock --upgrade-package celery"
 lock_diff
-wait
-
-###############################################################################
-# Result
-###############################################################################
-banner "Build it and run it"
-
 pe "${DOCKER_BUILD} --secret id=netrc,src=\${NETRC} -t ${IMAGE}:cg-remediated ."
 pe "docker run --rm ${IMAGE}:cg-remediated"
 pe "grype ${IMAGE}:cg-remediated --only-fixed"
 wait
+clear
 
 ###############################################################################
 # Day two

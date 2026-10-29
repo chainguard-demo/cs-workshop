@@ -54,21 +54,25 @@ Steps:
    1. `cd buildkit`
    1. `cat Dockerfile.nocache` and note the plain `pip install` with `--no-cache-dir`
    1. `docker build . -t cache:1 -f Dockerfile.nocache` (cold build — note the time)
-   1. `touch requirements.txt` to invalidate the layer
+   1. `echo '# run 2' >> requirements.txt` to invalidate the layer<br>`touch` is not enough: BuildKit keys the `COPY` on file content, not timestamps.
    1. `time docker build . -t cache:1 -f Dockerfile.nocache` _(slow again — full reinstall)_
-   1. `cat Dockerfile.cache` and note the `--mount=type=cache` on the `RUN` step
+   1. `git diff --no-index -U1000 Dockerfile.nocache Dockerfile.cache` and note the `--mount=type=cache` on the `RUN` step is the only change
+   1. `docker builder prune -f --filter type=exec.cachemount`<br>Empties any pip cache mount left by an earlier run so the next build really is cold. This prunes every cache mount on the machine. Do not use `--no-cache` for this: with `uid=` on the mount it gives each build a fresh, empty cache mount and the exercise stops working.
    1. `docker build . -t cache:2 -f Dockerfile.cache` (cold build)
-   1. `touch requirements.txt`
-   1. `time docker build . -t cache:2 -f Dockerfile.cache` _(fast — packages pulled from cache)_
+   1. `echo '# run 3' >> requirements.txt`
+   1. `time docker build . -t cache:2 -f Dockerfile.cache` _(fast — the layer is rebuilt but pip finds every package in the cache mount)_
+   1. `echo '# rebuild' >> requirements.txt` then `docker build --progress=plain . -t cache:3 -f Dockerfile.cache 2>&1 | grep -E 'Downloading|Using cached'`<br>No package changed, so every line is `Using cached`: the whole install is served from the mount.
+   1. `git checkout requirements.txt` when you are done
 
-1. Secret mounts — spot the difference in history
-   1. `echo "supersecrettoken" > token.txt`
-   1. `cat Dockerfile.secret` and note `--mount=type=secret`
-   1. `docker build --secret id=pip_token,src=./token.txt -t secret:1 .`
-   1. `docker image history secret:1` _(token is not visible)_
-   1. `cat Dockerfile.nosecret` and note `ARG PIP_TOKEN`
-   1. `docker build --build-arg PIP_TOKEN=supersecrettoken -t secret:2 -f Dockerfile.nosecret .`
-   1. `docker image history secret:2` _(token is visible in the RUN layer!)_
+1. Secret mounts — pass a token to pip without baking it in<br>Both Dockerfiles give pip the same `PIP_INDEX_URL` containing a token. PyPI ignores the credentials, so it stands in for a private index without needing one.
+   1. `echo -n "supersecrettoken" > token.txt`
+   1. `git diff --no-index -U1000 Dockerfile.nosecret Dockerfile.secret`<br>One sets the variable with `ARG` + `ENV`, which becomes part of the image. The other uses `--mount=type=secret,...,env=PIP_TOKEN`, which exposes the variable to that single `RUN` step and nowhere else.
+   1. `docker build --build-arg PIP_TOKEN=supersecrettoken -t secret:1 -f Dockerfile.nosecret .`
+   1. `docker image history secret:1 | grep supersecrettoken` _(visible in the layer history)_
+   1. `docker inspect secret:1 --format '{{.Config.Env}}'` _(visible in the image config)_
+   1. `docker run --rm --entrypoint env secret:1 | grep PIP` _(visible inside every container started from it)_
+   1. `docker build --secret id=pip_token,src=./token.txt -t secret:2 -f Dockerfile.secret .`
+   1. Repeat the three checks against `secret:2` — the token appears in none of them
    1. Add `token.txt` to `.gitignore` and `.dockerignore` — it's already done here as an example
 
 ### Image Signing & Attestations

@@ -1,4 +1,5 @@
 cosign.key
 cosign.pub
 token.txt
-sbom.json
+sbom.spdx.json
+attestation.json

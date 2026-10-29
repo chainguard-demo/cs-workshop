@@ -80,16 +80,25 @@ Steps:
 1. Sign and verify your own image (Exercise 4.1)
    1. `cd signing`
    1. `cosign generate-key-pair`<br>Enter a password when prompted. This writes `cosign.key` (private) and `cosign.pub` (public).
-   1. `docker build . -t ttl.sh/cg-workshop-$USER:1h`
-   1. `docker push ttl.sh/cg-workshop-$USER:1h`<br>`ttl.sh` is a free ephemeral public registry — no login required. Images expire after the duration in the tag.
-   1. `IMAGE=$(crane digest ttl.sh/cg-workshop-$USER:1h)`
-   1. `cosign sign --key cosign.key ttl.sh/cg-workshop-$USER@${IMAGE}`
-   1. `cosign verify --key cosign.pub ttl.sh/cg-workshop-$USER@${IMAGE}`
+   1. `docker run -d --name zot -p 127.0.0.1:5000:5000 ghcr.io/project-zot/zot:latest`<br>A local [zot](https://zotregistry.dev/) registry on loopback stands in for a real one, so nothing leaves the machine. zot is used rather than distribution because it implements the OCI referrers API, which the later steps rely on. If you already have one from an earlier run, `docker start zot` instead, and stop anything else listening on port 5000 first. zot also serves a browsable UI at http://localhost:5000.
+   1. `docker build . -t localhost:5000/cg-workshop:latest`
+   1. `docker push localhost:5000/cg-workshop:latest`<br>Docker, crane and cosign all treat `localhost` as an insecure registry, so no TLS or login setup is needed.
+   1. `DIGEST=$(crane digest localhost:5000/cg-workshop:latest)`<br>Sign by digest, not by tag — a tag can be moved to point at something else.
+   1. `cosign sign --key cosign.key localhost:5000/cg-workshop@${DIGEST}`
+   1. `cosign verify --key cosign.pub localhost:5000/cg-workshop@${DIGEST}`
+   1. `crane ls localhost:5000/cg-workshop`<br>The signature is stored as a separate artifact that refers to the image. Because zot supports the referrers API, cosign does not need to create a `sha256-<digest>` fallback tag, so only `latest` is listed.
+   1. `curl -s http://localhost:5000/v2/cg-workshop/referrers/${DIGEST} | jq '{mediaType, referrers: [.manifests[] | {artifactType, digest}]}'`<br>The OCI referrers API returns an image index listing every artifact whose `subject` is this digest. Right now that is the signature, a Sigstore bundle.
+   1. `oras discover localhost:5000/cg-workshop@${DIGEST}`<br>oras reads the same API and draws the referrers as a tree under the image.
 
-1. Generate and scan an SBOM (Exercise 4.2)
-   1. `syft cgr.dev/chainguard/python:latest`<br>Shows all packages in the image in table format
-   1. `syft cgr.dev/chainguard/python:latest -o spdx-json > sbom.json`
-   1. `jq '.packages | length' sbom.json`<br>Count the packages
-   1. `jq '.packages[].name' sbom.json`<br>List package names
-   1. `grype cgr.dev/chainguard/python:latest`<br>Scan for vulnerabilities — expect zero findings
-   1. `grype python:3.13-slim`<br>Compare against a standard Python image
+1. Attach an SBOM to the image as an attestation (Exercise 4.2)
+   1. `syft localhost:5000/cg-workshop@${DIGEST} -o spdx-json > sbom.spdx.json`<br>Generate the SBOM from the pushed digest, not the local tag, so it describes exactly what was signed.
+   1. `jq '{spdxVersion, name, packages: (.packages | length)}' sbom.spdx.json`
+   1. `cosign attest --key cosign.key --type spdxjson --predicate sbom.spdx.json localhost:5000/cg-workshop@${DIGEST}`<br>cosign wraps the SBOM in an in-toto statement whose subject is the image digest, signs it, and pushes it next to the image.
+   1. `oras discover localhost:5000/cg-workshop@${DIGEST}`<br>A second referrer has appeared alongside the signature.
+   1. `for ref in $(oras discover --format json localhost:5000/cg-workshop@${DIGEST} | jq -r '.manifests[].digest'); do oras blob fetch --output - localhost:5000/cg-workshop@$(oras manifest fetch localhost:5000/cg-workshop@$ref | jq -r '.layers[0].digest') | jq -c '.dsseEnvelope.payload | @base64d | fromjson | {predicateType, subject: .subject[0].digest.sha256}'; done`<br>Each referrer is a Sigstore bundle wrapping a DSSE envelope. The in-toto statement inside names the image digest as its subject, and its predicate type tells the signature (`cosign/sign/v1`) apart from the SBOM attestation (`spdx.dev/Document`). Do not rely on the manifest annotation for this; cosign labels both bundles as signatures there.
+   1. `cosign verify-attestation --key cosign.pub --type spdxjson localhost:5000/cg-workshop@${DIGEST} > attestation.json`<br>Verification checks the signature and returns the signed envelope. The SBOM is the base64 payload inside it.
+   1. `jq -r '.payload | @base64d | fromjson | {predicateType, subject: .subject[0].digest.sha256, packages: (.predicate.packages | length)}' attestation.json`<br>Confirm the subject digest matches the image.
+   1. `jq -r '.payload | @base64d | fromjson | .predicate.packages[] | [.name, .versionInfo] | @tsv' attestation.json | column -t`<br>Pretty-print the packages from the attested SBOM.
+   1. `grype sbom:sbom.spdx.json`<br>Scan the SBOM for vulnerabilities — expect zero findings.
+   1. `grype python:3.13-slim`<br>Compare against a standard Python image.
+   1. When you are done, `docker rm -f zot` removes the registry and everything pushed to it.

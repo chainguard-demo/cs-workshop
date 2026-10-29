@@ -6,23 +6,20 @@ for i in $(docker images -q advanced); do
 done
 
 clear
-banner "Idea 1: Simple COPY command to copy a file from a builder image to a final image"
+banner "Idea 1: Using the -dev tag variant and removing packages"
 $BATCAT Dockerfile.1
 pe "docker build . -t advanced:1 -f Dockerfile.1"
 pe "docker images advanced"
 pe "docker image history advanced:1"
 
 wait
-banner "Idea 2: Using the -dev tag variant and removing packages"
+banner "Idea 2: Using a chroot'ed apk add"
 $BATCAT Dockerfile.2
 pe "docker build . -t advanced:2 -f Dockerfile.2"
 pe "docker images advanced"
 pe "docker image history advanced:2"
 
-wait
-banner "Idea 3: Using a chroor'ed apk add"
-$BATCAT Dockerfile.3
-pe "docker build . -t advanced:3 -f Dockerfile.3"
-pe "docker images advanced"
-pe "docker image history advanced:3"
+# The runtime image has no apk and no shell, but jq and its libraries are in place
+pe "echo '{\"image\": \"advanced:2\", \"shell\": false}' | docker run --rm -i --entrypoint jq advanced:2 '.image'"
+pe "docker run --rm --entrypoint sh advanced:2 -c 'echo there is no shell here'"
 

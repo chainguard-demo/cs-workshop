@@ -1,0 +1,8 @@
+# Chainguard credentials - NEVER commit these!
+.netrc
+
+venv/
+
+# Step 5 downloads
+*.whl
+bundle.json

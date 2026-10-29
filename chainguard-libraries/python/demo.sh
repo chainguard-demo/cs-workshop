@@ -6,6 +6,7 @@
 
 # Load demo-magic
 . ../../base.sh
+export GIT_PAGER=cat
 
 pei cd step1-orig/
 
@@ -35,12 +36,7 @@ Let's get started!
 ###############################################################################
 # Setup
 ###############################################################################
-banner "# Setting up environment variables."
-pei "ECOSYSTEM=\"python\""
-pei "TOKEN_NAME=\"python-libraries-workshop-token-$USER\""
-pei "TTL=\"1h\""
-pei ""
-pei ""
+banner "Setup"
 if [[ $(docker ps -a | awk '/python-lib-example/' | awk '{print $1}') ]]; then
   docker stop $(docker ps -a | awk '/python-lib-example/' | awk '{print $1}')
   docker rm $(docker ps -a | awk '/python-lib-example/' | awk '{print $1}')
@@ -86,25 +82,21 @@ pei 'docker stop python-lib-example && docker rm python-lib-example && rm -rf ve
 ###############################################################################
 banner "Step 2: Build with Chainguard Libraries and upstream Python images"
 cd ../step2-cg-build
-p "# Create a pull token for the Python ecosystem."
+p "# Mint a short-lived token from the current chainctl session, scoped to the org."
 
-pei 'eval $(chainctl auth pull-token --repository="${ECOSYSTEM}" --parent="${ORG_NAME}" --name="${TOKEN_NAME}" --ttl="${TTL}" -o env)'
+pei 'CGR_TOKEN=$(chainctl auth token --audience=libraries.cgr.dev --scope "${ORG_NAME}")'
 
-pei "# Create a .netrc file with credentials for the Chainguard Python repo."
+pei "# Create a .netrc file for the Chainguard Python repo. The registry ignores the login when the password is a session token."
 
-{
-  echo "machine libraries.cgr.dev"
-  echo "  login ${CHAINGUARD_PYTHON_IDENTITY_ID}"
-  echo "  password ${CHAINGUARD_PYTHON_TOKEN}"
-} > ../.netrc
+pe "printf 'machine libraries.cgr.dev\n  login _token\n  password %s\n' \"\$CGR_TOKEN\" > ../.netrc"
 
 pei "# Inspect the .netrc file: "
-pe "cat ../.netrc"
+pe "cut -c -80 ../.netrc"
 
 pei "TAG=\"upstream-cg-libs\""
 
-pe "# The Dockerfile mounts .netrc as a build secret and sets UV_INDEX_URL/UV_EXTRA_INDEX_URL to prioritize the Chainguard repo, falling back to PyPI:"
-pei 'cat Dockerfile'
+pe "# Compared with step 1, the Dockerfile mounts .netrc as a build secret and sets UV_DEFAULT_INDEX so the Chainguard repo is the only index, with no PyPI fallback:"
+pei 'git diff --no-index -U1000 ../step1-orig/Dockerfile Dockerfile'
 pei ""
 
 pe "# Build using .netrc as a BuildKit secret"
@@ -133,8 +125,8 @@ banner "Step 3: Full Chainguard Build (Chainguard Python images + Chainguard Lib
 cd ../step3-cg-all
 pei "TAG=\"chainguard-cg-libs\""
 
-pei "# The Chainguard python-dev image already includes uv — let's look at the Dockerfile:"
-pei 'cat Dockerfile'
+pei "# Compared with step 2, the Chainguard python-dev image already includes uv, and the app runs as the image's unprivileged user:"
+pei 'git diff --no-index -U1000 ../step2-cg-build/Dockerfile Dockerfile'
 pei ""
 
 pe "# Build the image:"
@@ -162,12 +154,9 @@ pei ""
 banner "Step 5: Verify Authenticity with Sigstore Bundle"
 pei "# A Sigstore bundle is a self‑contained JSON file that packages everything needed to verify the authenticity and integrity of a signed artifact."
 pe "# Download the Flask wheel - note, this demo is being run on a Mac and we do not currently produce wheels for Mac, so we are forcing the download of a Linux wheel."
-IFS='/' read -ra ADDR <<< "$CHAINGUARD_PYTHON_IDENTITY_ID"
-ID_PART_1=${ADDR[0]}
-ID_PART_2=${ADDR[1]}
-pe "pip3 download --only-binary=:all: --no-deps --platform manylinux_2_39_x86_64 --implementation cp --python-version 313 --abi cp313 --index-url "https://${ID_PART_1}%2F${ID_PART_2}:${CHAINGUARD_PYTHON_TOKEN}@libraries.cgr.dev/python/simple/" flask==3.0.2"
+pe "NETRC=../.netrc pip3 download --only-binary=:all: --no-deps --platform manylinux_2_39_x86_64 --implementation cp --python-version 313 --abi cp313 --index-url https://libraries.cgr.dev/python/simple/ flask==3.0.2"
 pe "# Download the corresponding sigstore bundle"
-pe "curl -L -u "$CHAINGUARD_PYTHON_IDENTITY_ID:$CHAINGUARD_PYTHON_TOKEN" -O https://libraries.cgr.dev/python/integrity/flask/3.0.2/flask-3.0.2-py3-none-any.whl/bundle.json"
+pe "curl -L --netrc-file ../.netrc -O https://libraries.cgr.dev/python/integrity/flask/3.0.2/flask-3.0.2-py3-none-any.whl/bundle.json"
 pe "# Verify with cosign verify-blob command"
 pe $'cosign verify-blob flask-3.0.2-py3-none-any.whl --bundle bundle.json --certificate-oidc-issuer="https://issuer.enforce.dev" --certificate-identity-regexp="^https://issuer\\.enforce\\.dev/.*$"'
 
@@ -177,10 +166,9 @@ pei 'docker stop python-lib-example && docker rm python-lib-example && rm -rf ve
 ###############################################################################
 # Final Cleanup
 ###############################################################################
-banner "Final cleanup: delete .netrc and revoke the Chainguard pull token"
-pei "IDS=\$(chainctl iam ids ls --parent=\"\${ORG_NAME}\" -o json | jq -r --arg name \"\${TOKEN_NAME}\" '.items[] | select(.name | startswith(\$name)) | .id')"
-pei 'while IFS= read -r ID; do chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes; done <<< "$IDS"'
-pei 'rm ../.netrc'
+banner "Final cleanup: delete .netrc"
+p "# The token expires with the chainctl session, so there is nothing to revoke."
+pei 'rm -f ../.netrc flask-*.whl bundle.json'
 
 p "# Demo complete!"
 exit 0

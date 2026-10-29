@@ -14,7 +14,7 @@ Run `./demo.sh` for an interactive walkthrough.
 
 ## Prerequisites
 
-- **chainctl** — installed and authenticated with `libraries.python.pull` entitlements. Install docs [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
+- **chainctl** — installed and logged in (`chainctl auth login`) with `libraries.python.pull` entitlements. Install docs [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **jq** for JSON parsing
 - A Chainguard organization with Python ecosystem entitlements
 - Docker with BuildKit support
@@ -26,8 +26,6 @@ Run `./demo.sh` for an interactive walkthrough.
 
 ```bash
 export ORG_NAME="<your-org-name>"
-TOKEN_NAME="python-libraries-workshop-token-$USER"
-TTL="8760h"
 ```
 
 ---
@@ -94,31 +92,36 @@ docker stop python-lib-example && docker rm python-lib-example && rm -rf venv
 
 Rebuild the same application with dependencies sourced from Chainguard Libraries while keeping the same upstream Python containers.
 
-### 1. Fetch Chainguard credentials
+### 1. Mint a short-lived token
 
-This produces two env vars: `CHAINGUARD_PYTHON_IDENTITY_ID` and `CHAINGUARD_PYTHON_TOKEN`.
+This is a bearer token from your current chainctl session, narrowed to your
+organization. It expires with the session, about an hour, and creates no
+identity, so there is nothing to revoke afterwards. For CI systems that cannot
+log in interactively, use `chainctl auth pull-token` instead.
 
 ```bash
-eval $(chainctl auth pull-token --repository=python --parent=$ORG_NAME --name=$TOKEN_NAME --ttl=$TTL -o env)
+CGR_TOKEN=$(chainctl auth token --audience=libraries.cgr.dev --scope "$ORG_NAME")
 ```
 
 ### 2. Generate .netrc
 
+The registry ignores the login when the password is a session token.
+
 ```bash
 cat > .netrc <<EOF
 machine libraries.cgr.dev
-  login ${CHAINGUARD_PYTHON_IDENTITY_ID}
-  password ${CHAINGUARD_PYTHON_TOKEN}
+  login _token
+  password ${CGR_TOKEN}
 EOF
 ```
 
 ### 3. Review the updated Dockerfile
 
 ```bash
-cat ../step2-cg-build/Dockerfile
+git diff --no-index -U1000 Dockerfile ../step2-cg-build/Dockerfile
 ```
 
-The Dockerfile mounts `.netrc` as a Docker secret and sets `UV_INDEX_URL` and `UV_EXTRA_INDEX_URL` to pull from Chainguard first, then PyPI.
+The Dockerfile mounts `.netrc` as a Docker secret and sets `UV_DEFAULT_INDEX` so Chainguard Libraries replaces PyPI as the only index. There is no client-side fallback, so a package the Chainguard repo cannot serve fails the build instead of quietly coming from PyPI.
 
 ### 4. Build using Chainguard Libraries
 
@@ -169,7 +172,7 @@ RUNTIME_IMAGE="cgr.dev/chainguard/python:latest"
 When using Chainguard Python images, `uv` is already installed so there's no need to install it separately.
 
 ```bash
-cat ../step3-cg-all/Dockerfile
+git diff --no-index -U1000 ../step2-cg-build/Dockerfile ../step3-cg-all/Dockerfile
 ```
 
 ### 3. Build with Chainguard Python images
@@ -216,8 +219,6 @@ docker stop python-lib-example && docker rm python-lib-example && rm -rf venv
 ## Final Cleanup
 
 ```bash
-ID=$(chainctl iam ids ls --parent=$ORG_NAME -o json | jq -r --arg name "$TOKEN_NAME" '.items[] | select(.name | startswith($name)) | .id')
-chainctl iam identities delete "$ID" --parent $ORG_NAME --yes
 rm .netrc
 docker image ls | grep python-lib-example | awk '{print $3}' | xargs docker image rm $1
 ```
@@ -227,6 +228,6 @@ docker image ls | grep python-lib-example | awk '{print $3}' | xargs docker imag
 ## Troubleshooting
 
 - **Docker BuildKit required:** Enable BuildKit (`DOCKER_BUILDKIT=1 docker build …`) when using `--secret` flags.
-- **Token authentication issues:** Verify credentials are valid. Re-run `chainctl auth pull-token` if needed.
+- **Token authentication issues:** The token expires with your chainctl session, about an hour. Re-run `chainctl auth token` and regenerate `.netrc`.
 - **Port conflicts:** If port `5055` is in use, use another mapping (e.g. `-p 5056:5055`).
 - **Dependencies not from Chainguard:** Ensure `.netrc` is correct and BuildKit secrets are mounted properly.

@@ -2,22 +2,19 @@ FROM python
 
 WORKDIR /app
 
-# Install uv 
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Copy dependency manifest
 COPY requirements.txt .
 
-# Delete any pre-existing cache to ensure dependencies are pulled from the Chainguard repo
-RUN rm -rf ~/.cache/pip
-
 # Create virtual environment
 RUN uv venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-ENV UV_INDEX="https://libraries.cgr.dev/python/simple https://pypi.org/simple"
-
+# Install dependencies from Chainguard Libraries, the only index; anything it cannot serve fails the build
+ENV UV_DEFAULT_INDEX="https://libraries.cgr.dev/python/simple"
 RUN --mount=type=secret,id=netrc,target=/root/.netrc \
     uv pip install --no-cache -r requirements.txt
 

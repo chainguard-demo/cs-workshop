@@ -1,6 +1,7 @@
 #!/bin/bash
 
 . ../../base.sh
+export GIT_PAGER=cat
 
 cd step1-orig/
 
@@ -12,13 +13,10 @@ echo -e "
 Demo: Converting a JavaScript App to Use Chainguard Libraries
 
 This demo shows how to rebuild a Node.js app using Chainguard Libraries instead of the public npm registry.
-We'll build with the upstream registry first, then migrate to Chainguard Libraries using npm, Yarn, and Bun.
+We'll build with the upstream registry first, then migrate to Chainguard Libraries using npm, Yarn, and Bun,
+authenticating with short-lived tokens from the current chainctl session.
 "
 wait
-
-banner "Setup"
-read -p "Enter your Chainguard organization name: " ORG_NAME
-export ORG_NAME
 
 banner "Step 1: Baseline Build with Upstream Registry"
 
@@ -37,21 +35,12 @@ pei 'docker stop js-lib-example && docker rm js-lib-example'
 banner "Step 2: Build with Chainguard Libraries (npm)"
 
 pei "cd ../step2-cg"
+rm -f .npmrc bunfig.toml
 
-pe "CREDS_OUTPUT=\$(chainctl auth pull-token \
-  --repository=javascript \
-  --parent=\$ORG_NAME \
-  --name=js-workshop-token-\$USER \
-  --ttl=1h \
-  -o json)"
+pe "chainctl auth configure-npm"
 
-pei "export CGR_USER=\$(echo \$CREDS_OUTPUT | jq -r \".identity_id\")"
-pei "export CGR_TOKEN=\$(echo \$CREDS_OUTPUT | jq -r \".token\")"
-pei "export TOKEN=\$(printf '%s' \$\"{CGR_USER}:\${CGR_TOKEN}\" | base64 | tr -d '\n')"
-pei "printf 'registry=https://libraries.cgr.dev/javascript/\n//libraries.cgr.dev/javascript/:_auth=%s\n//libraries.cgr.dev/javascript/:always-auth=true\n' \"\$(echo -n \"\${CGR_USER}:\${CGR_TOKEN}\" | base64 | tr -d '\\n')\" > .npmrc"
-
-pe "cat .npmrc"
-pe "cat Dockerfile.npm"
+pe "cut -c -80 .npmrc"
+pe "git diff --no-index -U1000 ../step1-orig/Dockerfile Dockerfile.npm"
 
 pe "docker build --no-cache \
   --secret id=npmrc,src=./.npmrc \
@@ -67,13 +56,13 @@ pei 'docker stop js-lib-example && docker rm js-lib-example'
 
 banner "Step 3: Build with Chainguard Libraries (Yarn)"
 
-pei "printf 'npmRegistryServer: \"https://libraries.cgr.dev/javascript/\"\nnpmAlwaysAuth: true\nnpmAuthIdent: \"%s\"\nnodeLinker: node-modules\n' \"\${CGR_USER}:\${CGR_TOKEN}\" > .yarnrc.yml"
-
-pe "cat .yarnrc.yml"
-pe "cat Dockerfile.yarn"
+# Yarn Classic reads .npmrc too, but only sends credentials for unscoped
+# packages when always-auth is set; configure-npm does not write that line.
+pe "echo '//libraries.cgr.dev/javascript/:always-auth=true' >> .npmrc"
+pe "git diff --no-index -U1000 Dockerfile.npm Dockerfile.yarn"
 
 pe "docker build --no-cache \
-  --secret id=yarnrc,src=./.yarnrc.yml \
+  --secret id=npmrc,src=./.npmrc \
   -t js-lib-example:yarn-cg \
   -f Dockerfile.yarn ."
 
@@ -84,19 +73,18 @@ pe 'curl http://localhost:3000/api/health'
 
 pei 'docker stop js-lib-example && docker rm js-lib-example'
 
-banner "Step 5: Build with Chainguard Libraries (Bun)"
+banner "Step 4: Build with Chainguard Libraries (Bun)"
 
-#pei "printf '[install]\nregistry = \"https://libraries.cgr.dev/javascript/\"\n\n[install.scopes]\n\"libraries.cgr.dev\" = { token = \"%s\", username = \"%s\" }\n' \"\${CGR_TOKEN}\" \"\${CGR_USER}\" > bunfig.toml"
+pe "export CGR_TOKEN=\$(chainctl auth token --audience libraries.cgr.dev)"
 
 {
   echo "[install.registry]"
   echo "url = \"https://libraries.cgr.dev/javascript/\""
-  echo "username = \"${CGR_USER}\""
-  echo "password = \"${CGR_TOKEN}\""
+  echo "token = \"${CGR_TOKEN}\""
 } > bunfig.toml
 
-pe "cat bunfig.toml"
-pe "cat Dockerfile.bun"
+pe "cut -c -80 bunfig.toml"
+pe "git diff --no-index -U1000 Dockerfile.npm Dockerfile.bun"
 
 pe "docker build --no-cache \
   --secret id=bunfig,src=./bunfig.toml \
@@ -111,7 +99,7 @@ pe 'curl http://localhost:3000/api/health'
 banner "Cleanup"
 
 pei 'docker stop js-lib-example && docker rm js-lib-example'
-pei 'rm -f .npmrc .yarnrc.yml bunfig.toml'
+pei 'rm -f .npmrc bunfig.toml'
 pei "docker image ls | grep js-lib-example | awk '{print \$2}' | xargs docker image rm"
 
 banner "Demo Complete!"

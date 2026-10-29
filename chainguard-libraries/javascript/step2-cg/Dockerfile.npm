@@ -1,9 +1,8 @@
 FROM node:25
 WORKDIR /app
-
 COPY package.json server.js ./
 RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
     npm install
-
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "server.js"]
+ENTRYPOINT ["node", "server.js"]

@@ -1,11 +1,8 @@
 FROM node:25
 WORKDIR /app
-
 COPY package.json server.js ./
-
-RUN --mount=type=secret,id=yarnrc,target=/app/.yarnrc.yml,uid=65532 \
-    yarn cache clean && \
-    yarn install 
-
+RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
+    yarn install
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "server.js"]
+ENTRYPOINT ["node", "server.js"]

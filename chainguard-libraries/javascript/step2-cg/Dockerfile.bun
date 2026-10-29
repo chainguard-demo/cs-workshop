@@ -2,6 +2,7 @@ FROM oven/bun:1
 WORKDIR /app
 COPY package.json server.js ./
 RUN --mount=type=secret,id=bunfig,target=/app/bunfig.toml \
-    bun install 
+    bun install
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["bun", "run", "server.js"]
+ENTRYPOINT ["bun", "run", "server.js"]

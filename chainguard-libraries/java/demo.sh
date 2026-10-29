@@ -1,4 +1,4 @@
-#! env bash
+#!/usr/bin/env bash
 
 ###############################################################################
 # Demo Magic Script: Java Libraries Workshop
@@ -8,6 +8,7 @@
 # Load demo-magic
 # Ensure demo-magic.sh is in the same directory or adjust the path accordingly
 . ../../base.sh
+export GIT_PAGER=cat
 
 pei cd step1-orig/
 
@@ -54,13 +55,7 @@ wait
 # Setup
 ###############################################################################
 
-banner "# Let's start by setting up some environment variables."
-pei "ECOSYSTEM=\"java\""
-pei "TOKEN_NAME=\"java-libraries-workshop-token-$USER\""
-pei "TTL=\"8760h\""
-pei ""
-pei ""
-
+banner "Setup"
 read -p "Enter your Chainguard organization name (e.g. myorg.com): " ORG_NAME
 export ORG_NAME
 
@@ -83,7 +78,7 @@ pei "TAG=\"upstream\""
 pei "BUILDER_IMAGE=\"maven\""
 pei "RUNTIME_IMAGE=\"eclipse-temurin\""
 
-pei 'docker build --build-arg BASE_IMAGE=$BUILDER_IMAGE --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE -t java-lib-example:$TAG .'
+pei 'docker build --build-arg BUILDER_IMAGE=$BUILDER_IMAGE --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE -t java-lib-example:$TAG .'
 
 p "# Run the container and test it."
 pei 'docker run -d -p 8081:8080 --name java-lib-example-1 java-lib-example:$TAG'
@@ -106,12 +101,10 @@ pei 'docker stop java-lib-example-1 && docker rm java-lib-example-1 && rm java-d
 ###############################################################################
 banner "Step 2: Build using Chainguard Libraries with upstream Maven and Temurin Images."
 
-p "# In order to use Chainguard Libraries for Java to build our app, we will need to create a pull token for the Java ecosystem. Press enter to create your token."
-pei 'CREDS_OUTPUT=$(chainctl auth pull-token --library-ecosystem="${ECOSYSTEM}" --parent="${ORG_NAME}" --name="${TOKEN_NAME}" --ttl="${TTL}" -o json)'
-pei 'CGR_MAVEN_USER=$(echo $CREDS_OUTPUT | jq -r ".identity_id")'
-pei 'CGR_MAVEN_PASS=$(echo $CREDS_OUTPUT | jq -r ".token")'
+p "# To build with Chainguard Libraries for Java we mint a short-lived token from the current chainctl session, scoped to the org."
+pei 'export CGR_TOKEN=$(chainctl auth token --audience=libraries.cgr.dev --scope "${ORG_NAME}")'
 
-pe "# Now that we have our credentials we need to create a settings.xml file to configure it to use the Chainguard repo, notice that we are referencing our credentials in the file as environment variables:"
+pe "# Maven picks the token up from settings.xml. A mirror of * sends every repository request, Maven Central included, to Chainguard, and the token is referenced as an environment variable rather than written into the file:"
 pei 'cat settings.xml'
 pei ""
 
@@ -121,8 +114,8 @@ pei "TAG=\"upstream-cg-libs\""
 pei "BUILDER_IMAGE=\"maven\""
 pei "RUNTIME_IMAGE=\"eclipse-temurin\""
 
-pe "# Lets take a look at the dockerfile as it is slightly different from before, notice that we will be passing in our credentials as build secrets so that they are not stored in the layers or in the builder logs:"
-pei 'cat ../step2-cg-build/Dockerfile'
+pe "# Compared with step 1, the Dockerfile copies settings.xml in and hands the token to the mvn step as a build secret, so it is never stored in a layer or printed in the build log:"
+pei 'git diff --no-index -U1000 Dockerfile ../step2-cg-build/Dockerfile'
 pei ""
 
 pei "# Below is the command we will use to build the image, notice we are passing in the credentials as build secrets."
@@ -130,8 +123,7 @@ pe "docker build \
   -t java-lib-example:\$TAG \
   --build-arg BUILDER_IMAGE=\$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=\$RUNTIME_IMAGE \
-  --secret id=cgr_user,src=<(echo -n \"\$CGR_MAVEN_USER\") \
-  --secret id=cgr_pass,src=<(echo -n \"\$CGR_MAVEN_PASS\") \
+  --secret id=cgr_token,env=CGR_TOKEN \
   -f ../step2-cg-build/Dockerfile ."
 
 p "# Run the container and test it."
@@ -158,16 +150,13 @@ pe '# Now lets set our tag, builder and runtime image and build the same app as 
 pei "TAG=\"chainguard-cg-libs\""
 pei "BUILDER_IMAGE=\"cgr.dev/chainguard/maven:latest\""
 pei "RUNTIME_IMAGE=\"cgr.dev/chainguard/jre:latest\""
-pei "MAVEN_SETTINGS_PATH=\"/usr/share/java/maven/conf/settings.xml\""
 
-pei "# For this build we will use the same settings.xml and pom.xml file as in the previous step."
+pei "# This build uses the same Dockerfile, settings.xml and pom.xml as the previous step; only the images change."
 pe "docker build \
   -t java-lib-example:\$TAG \
   --build-arg BUILDER_IMAGE=\$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=\$RUNTIME_IMAGE \
-  --build-arg MAVEN_SETTINGS_PATH=\$MAVEN_SETTINGS_PATH \
-  --secret id=cgr_user,src=<(echo -n \"\$CGR_MAVEN_USER\") \
-  --secret id=cgr_pass,src=<(echo -n \"\$CGR_MAVEN_PASS\") \
+  --secret id=cgr_token,env=CGR_TOKEN \
   -f ../step2-cg-build/Dockerfile ."
 
 p "# Run the container and test it."
@@ -190,7 +179,7 @@ pei 'docker stop java-lib-example-1 && docker rm java-lib-example-1 && rm java-d
 banner "Step 4: View Java Library Provenance"
 pei "# Each Java dependency built by Chainguard is accompanied by an SBOM, the SBOMs are published alongside each artifact as an SPDX JSON file named artifactId-version.spdx.json in the Chainguard Maven Repository."
 pei '# chainctl compares the package checksum with the one listed in the SBOM to determine if the package was built by Chainguard or not. Lets take a look at the SBOM for the spring-boot-starter-web dependency, we will start by downloading the SBOM from the Chainguard Maven repository:'
-pei "curl -L --user \"\$CGR_MAVEN_USER:\$CGR_MAVEN_PASS\" \
+pei "curl -L --user \"_token:\$CGR_TOKEN\" \
   -O https://libraries.cgr.dev/java/org/springframework/boot/spring-boot-starter-web/3.3.5/spring-boot-starter-web-3.3.5.spdx.json"
 pei '# Now lets take a look at the relevant section of the SBOM:'
 pe "jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, packages: [.packages[0]]}' spring-boot-starter-web-3.3.5.spdx.json | jq ."
@@ -199,9 +188,8 @@ pei ""
 ###############################################################################
 # Final Cleanup
 ###############################################################################
-banner "Final cleanup delete local files and delete the Chainguard pull token"
-pei "ID=\$(chainctl iam ids ls --parent=\"\${ORG_NAME}\" -o json | jq -r --arg name \"\${TOKEN_NAME}\" '.items[] | select(.name | startswith(\$name)) | .id')"
-pei 'chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes'
+banner "Final cleanup: delete local files"
+p "# The token expires with the chainctl session, so there is nothing to revoke."
 pei 'rm spring-boot-starter-web-3.3.5.spdx.json'
 
 p "# Demo complete!"

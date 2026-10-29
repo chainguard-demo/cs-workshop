@@ -1,0 +1,4 @@
+# Step artifacts copied out of containers
+*.jar
+*.spdx.json
+target/

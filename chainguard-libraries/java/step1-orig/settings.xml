@@ -3,38 +3,22 @@
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
                               https://maven.apache.org/xsd/settings-1.0.0.xsd">
 
+  <!-- The registry ignores the username when the password is a session token -->
   <servers>
     <server>
-      <id>chainguard-libs</id>
-      <username>${env.CGR_MAVEN_USER}</username>
-      <password>${env.CGR_MAVEN_PASS}</password>
+      <id>chainguard</id>
+      <username>_token</username>
+      <password>${env.CGR_TOKEN}</password>
     </server>
   </servers>
 
-  <profiles>
-    <profile>
-      <id>chainguard-libraries</id>
-      <repositories>
-        <!-- 1️⃣ Chainguard Maven repo (first priority) -->
-        <repository>
-          <id>chainguard-libs</id>
-          <url>https://libraries.cgr.dev/maven/</url>
-          <releases><enabled>true</enabled></releases>
-          <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-
-        <!-- 2️⃣ Maven Central fallback -->
-        <repository>
-          <id>central</id>
-          <url>https://repo1.maven.org/maven2</url>
-          <releases><enabled>true</enabled></releases>
-          <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-      </repositories>
-    </profile>
-  </profiles>
-
-  <activeProfiles>
-    <activeProfile>chainguard-libraries</activeProfile>
-  </activeProfiles>
+  <!-- Route every repository, Maven Central included, through Chainguard.
+       There is no client-side fallback; anything Chainguard cannot serve fails the build. -->
+  <mirrors>
+    <mirror>
+      <id>chainguard</id>
+      <mirrorOf>*</mirrorOf>
+      <url>https://libraries.cgr.dev/java/</url>
+    </mirror>
+  </mirrors>
 </settings>

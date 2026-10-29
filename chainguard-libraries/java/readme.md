@@ -12,7 +12,7 @@
     - [6. Copy the built JAR and scan](#6-copy-the-built-jar-and-scan)
     - [7. Cleanup](#7-cleanup)
   - [🧱 Step 2 — Build Using Chainguard Libraries](#-step-2--build-using-chainguard-libraries)
-    - [1. Create a pull token](#1-create-a-pull-token)
+    - [1. Mint a short-lived token](#1-mint-a-short-lived-token)
     - [2. Review `settings.xml`](#2-review-settingsxml)
     - [3. Set build variables](#3-set-build-variables-1)
     - [4. Review the updated Dockerfile](#4-review-the-updated-dockerfile)
@@ -63,26 +63,18 @@ For this demo all builds will use **containerized environments** to avoid needin
 
 ## 🧰 Prerequisites
 
-- **chainctl** is installed and user has access to the chainguard org with java ecosystem entitlements. 
-> NOTE: The user must have the `libraries.java.pull` role in order to access libraries from `https://libraries.cgr.dev/maven/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
-- **chainctl** CLI tool to scan artifacts.  chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
+- **chainctl** installed and logged in (`chainctl auth login`) as a user with access to the Chainguard org's Java ecosystem entitlements.
+> NOTE: The user must have the `libraries.java.pull` role in order to access libraries from `https://libraries.cgr.dev/java/` e.g. `owner` role. Chainctl install docs can be found [here](https://edu.chainguard.dev/chainguard/chainctl-usage/how-to-install-chainctl/)
 - **jq** installed for JSON parsing  
 - A **Chainguard organization name** (e.g. `myorg.com`) that has Java ecosystem entitlements. 
-- Network Access to `https://libraries.cgr.dev/maven/`
+- Network Access to `https://libraries.cgr.dev/java/`
 - Docker installed to run images
 ---
 
 ## ⚙️ Setup
-Start by setting some environment variables that will be needed for the demo. 
+Set the Chainguard organization with entitlements to the Java ecosystem.
 
 ```bash
-# Ecosystem to create a token for, in this case java
-ECOSYSTEM="java"
-# Name associated with the token
-TOKEN_NAME="java-libraries-workshop-token-$USER"
-# How long the token should be valid for in hours
-TTL="8760h"
-# The name of the Chainguard organizaiton with entitlements to the ecosystem.
 export ORG_NAME="<YOUR Chainguard ORG name>"
 ```
 
@@ -125,7 +117,7 @@ RUNTIME_IMAGE="eclipse-temurin"
 ```bash
 # Build the app using the upstream Maven builder and Temurin runtime.
 docker build \
-  --build-arg BASE_IMAGE=$BUILDER_IMAGE \
+  --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
   -t java-lib-example:$TAG .
 ```
@@ -164,29 +156,22 @@ In this step, you’ll rebuild the same application but redirect Maven to pull i
 The build and runtime containers remain the same, proving that you can switch dependency sources without breaking builds or changing code.
 After the build, you’ll scan to verify that dependencies now originate from Chainguard’s repository.
 
-### 1. Create a pull token
+### 1. Mint a short-lived token
+
+This is a bearer token from your current chainctl session, narrowed to your
+organization. It expires with the session, about an hour, and creates no
+identity, so there is nothing to revoke afterwards. For CI systems that cannot
+log in interactively, use `chainctl auth pull-token` instead.
 
 ```bash
-# Request a Chainguard library token for the Java ecosystem.
-CREDS_OUTPUT=$(chainctl auth pull-token \
-  --library-ecosystem="${ECOSYSTEM}" \
-  --parent="${ORG_NAME}" \
-  --name="${TOKEN_NAME}" \
-  --ttl="${TTL}" \
-  -o json)
-
-# Extract credentials for Maven authentication.
-export CGR_MAVEN_USER=$(echo $CREDS_OUTPUT | jq -r ".identity_id")
-export CGR_MAVEN_PASS=$(echo $CREDS_OUTPUT | jq -r ".token")
+export CGR_TOKEN=$(chainctl auth token --audience=libraries.cgr.dev --scope "$ORG_NAME")
 ```
 
 ### 2. Review `settings.xml`
-View the settings.xml file which shows that we are setting `https://libraries.cgr.dev/maven/` as the primary repo and keeping maven central as a fallback.  Notice that we are referencing the credentials as environment variables that will be passed in as docker build secrets when building the image.
+The settings file declares a mirror of `*` pointing at `https://libraries.cgr.dev/java/`, so every repository request, Maven Central included, goes to Chainguard. There is no client-side fallback: anything Chainguard cannot serve fails the build rather than quietly coming from Maven Central. The token is referenced as an environment variable, which the Dockerfile supplies from a build secret, and the registry ignores the username when the password is a session token.
 
 ```bash
-# Show settings.xml, which references Chainguard’s Maven repo and uses your credentials.
 cat settings.xml
-
 ```
 
 ### 3. Set build variables
@@ -199,11 +184,10 @@ RUNTIME_IMAGE="eclipse-temurin"
 ```
 
 ### 4. Review the updated Dockerfile
-Notice here that we have modified the `RUN` statement for the build to reference the build secrets for the credentials to authenticate to `https://libraries.cgr.dev/maven/`. We also modified the maven command to `mvn clean package -U` the -U flag ignores the local cache to ensure we pick up all available dependencies from `https://libraries.cgr.dev/maven/`.
+Compared with step 1, the Dockerfile copies `settings.xml` into the build and mounts the token as a build secret that is exposed to the `mvn` step as the `CGR_TOKEN` environment variable. It never lands in a layer or in the build log.
 
 ```bash
-# View the Dockerfile configured to use build secrets for credentials.
-cat ../step2-cg-build/Dockerfile
+git diff --no-index -U1000 Dockerfile ../step2-cg-build/Dockerfile
 ```
 
 ### 5. Build using Chainguard Libraries
@@ -214,8 +198,7 @@ docker build \
   -t java-lib-example:$TAG \
   --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
-  --secret id=cgr_user,src=<(echo -n "$CGR_MAVEN_USER") \
-  --secret id=cgr_pass,src=<(echo -n "$CGR_MAVEN_PASS") \
+  --secret id=cgr_token,env=CGR_TOKEN \
   -f ../step2-cg-build/Dockerfile .
 ```
 
@@ -247,15 +230,13 @@ This stage runs the full “secure supply chain” build: using Chainguard’s M
 The result is an application where the entire toolchain — builder, runtime, and dependencies — comes from Chainguard.
 
 ### 1. Set variables
-When using the Chainguard Maven image we copy the settings.xml file to a different path from the runtime image due to the difference of where the default settings.xml file lives in the Chainguard Maven image.
+The same Dockerfile, `settings.xml` and `pom.xml` are used as in step 2; only the images change.
 
 ```bash
 # Use Chainguard's Maven and JRE images for builder and runtime.
 TAG="chainguard-cg-libs"
 BUILDER_IMAGE="cgr.dev/chainguard/maven:latest"
 RUNTIME_IMAGE="cgr.dev/chainguard/jre:latest"
-MAVEN_SETTINGS_PATH="/usr/share/java/maven/conf/settings.xml"
-
 ```
 
 ### 2. Build with Chainguard Maven and JRE
@@ -266,9 +247,7 @@ docker build \
   -t java-lib-example:$TAG \
   --build-arg BUILDER_IMAGE=$BUILDER_IMAGE \
   --build-arg RUNTIME_IMAGE=$RUNTIME_IMAGE \
-  --build-arg MAVEN_SETTINGS_PATH=$MAVEN_SETTINGS_PATH \
-  --secret id=cgr_user,src=<(echo -n "$CGR_MAVEN_USER") \
-  --secret id=cgr_pass,src=<(echo -n "$CGR_MAVEN_PASS") \
+  --secret id=cgr_token,env=CGR_TOKEN \
   -f ../step2-cg-build/Dockerfile .
 
 ```
@@ -313,7 +292,7 @@ Inspect provenance for a specific package, note that the SBOM indicates that the
 Download the SBOM for the spring-boot-starter-web library:
 
 ```bash
-curl -L --user "$CGR_MAVEN_USER:$CGR_MAVEN_PASS" \
+curl -L --user "_token:$CGR_TOKEN" \
   -O https://libraries.cgr.dev/java/org/springframework/boot/spring-boot-starter-web/3.3.5/spring-boot-starter-web-3.3.5.spdx.json
 ```
 
@@ -326,12 +305,10 @@ jq '{spdxVersion, dataLicense, SPDXID, name, documentNamespace, creationInfo, pa
 ---
 
 ## 🧹 Final Cleanup
-This removes temporary tokens, images, and jar artifacts created during the workshop.
+This removes the images and files created during the workshop. The token expires with your chainctl session, so there is nothing to revoke.
 
 ```bash
-# Look up and delete the temporary identity used for the Chainguard pull token.
-ID=$(chainctl iam ids ls --parent="$ORG_NAME" -o json | jq -r --arg name "$TOKEN_NAME" '.items[] | select(.name | startswith($name)) | .id')
-chainctl iam identities delete "$ID" --parent "$ORG_NAME" --yes
+rm -f spring-boot-starter-web-3.3.5.spdx.json
 
 # Remove the Docker images that were created
 docker image ls | grep java-lib-example | awk '{print $3}' | xargs docker image rm $1
@@ -343,8 +320,8 @@ docker image ls | grep java-lib-example | awk '{print $3}' | xargs docker image 
 - **Docker BuildKit required:**  
   Make sure BuildKit is enabled (`DOCKER_BUILDKIT=1 docker build …`) when using secrets.
 - **Credential issues:**  
-  If you see 401 or 403 errors from `libraries.cgr.dev`, ensure the `CGR_MAVEN_USER` and `CGR_MAVEN_PASS` environment variables are correctly set.
+  If you see 401 or 403 errors from `libraries.cgr.dev`, the token has probably expired with your chainctl session, about an hour. Re-run `chainctl auth token` and rebuild.
 - **Port conflicts:**  
   If port `8081` is in use, update the `docker run` command (e.g., `-p 8082:8080`).
-- **Maven Central fallback:**  
-  If a large number of dependencies still resolve from Maven Central, in the Chainguard builds, verify your `settings.xml`, credentials, and clear any Artifactory cache.
+- **Missing artifacts:**  
+  With the `*` mirror there is no Maven Central fallback, so a 404 from `libraries.cgr.dev` means Chainguard has not built that version and the org's upstream fallback policy did not serve it. Check with `chainctl libraries packages versions maven:<groupId>:<artifactId>`.
